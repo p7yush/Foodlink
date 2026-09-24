@@ -1,27 +1,24 @@
 "use client"
 
 import { usePathname } from "next/navigation"
-import { Search, Bell, Menu } from "lucide-react"
-import { Input } from "@/components/ui/input"
+import { Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useAuth } from "@/components/providers/AuthProvider"
 
 export function Header() {
   const pathname = usePathname()
+  const { profile } = useAuth()
 
-  if (pathname === "/") return null
+  // Don't render on landing page or auth pages
+  if (pathname === "/" || pathname.startsWith("/login") || pathname.startsWith("/signup")) return null
 
-  // A simple way to get a title from pathname for mock purposes
   const getPageTitle = () => {
-    if (pathname === "/dashboard") return "Operations Dashboard"
-    if (pathname === "/donations") return "Donations"
+    if (pathname === "/dashboard") return "Dashboard"
+    if (pathname === "/donations") return profile?.role === "donor" ? "My Donations" : "Available Food"
     if (pathname === "/donations/new") return "Post Surplus Food"
     if (pathname.startsWith("/donations/")) return "Donation Details"
-    if (pathname === "/matches") return "Matching Center"
-    if (pathname === "/volunteers") return "Volunteers"
-    if (pathname === "/recipients") return "Recipients"
-    if (pathname === "/analytics") return "Impact Analytics"
-    if (pathname === "/settings") return "Settings"
-    return "FoodFlow"
+    if (pathname === "/requests") return profile?.role === "donor" ? "Incoming Requests" : "My Requests"
+    return "Foodlink"
   }
 
   return (
@@ -33,29 +30,6 @@ export function Header() {
       
       <div className="w-full flex-1">
         <h1 className="text-lg font-semibold md:text-xl">{getPageTitle()}</h1>
-      </div>
-      
-      <div className="flex items-center gap-4 md:gap-2 lg:gap-4">
-        <form className="ml-auto flex-1 sm:flex-initial hidden md:block">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search donations, volunteers..."
-              className="pl-8 sm:w-[300px] md:w-[200px] lg:w-[300px] bg-muted/50 border-none focus-visible:ring-1 focus-visible:ring-primary"
-            />
-          </div>
-        </form>
-        <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
-          <Bell className="h-5 w-5" />
-          <span className="sr-only">Toggle notifications</span>
-          <span className="absolute top-2 right-2.5 h-2 w-2 rounded-full bg-primary ring-2 ring-background"></span>
-        </Button>
-        <Button variant="ghost" size="icon" className="rounded-full bg-primary/10 hover:bg-primary/20 transition-colors">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium text-primary">
-            OT
-          </div>
-        </Button>
       </div>
     </header>
   )

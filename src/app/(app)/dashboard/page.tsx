@@ -1,136 +1,191 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { getDonations, getAnalytics } from "@/lib/db"
-import { AlertCircle, ArrowUpRight, Clock, MapPin, Package, ShieldAlert, Truck } from "lucide-react"
+import { useAuth } from "@/components/providers/AuthProvider"
+import { supabase } from "@/lib/supabase"
+import { AlertCircle, Clock, MapPin, Package, Inbox, CheckCircle2 } from "lucide-react"
 
-export default async function DashboardPage() {
-  const mockDonations = await getDonations()
-  const mockAnalytics = await getAnalytics()
-  
-  const activeDonations = mockDonations.filter(d => d.status !== 'Delivered')
-  
+type Stats = {
+  total?: number
+  available?: number
+  requested?: number
+  accepted?: number
+  availableFood?: number
+  totalRequests?: number
+  pending?: number
+}
+
+type DashboardItem = {
+  id: string
+  title?: string
+  quantity?: number
+  pickup_address?: string
+  status?: string
+  food_requests?: { status: string }[]
+  food_donations?: {
+    title: string
+    quantity: number
+    pickup_address: string
+  }
+}
+
+export default function DashboardPage() {
+  const { user, profile, loading: authLoading } = useAuth()
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [recentItems, setRecentItems] = useState<DashboardItem[]>([])
+
+  useEffect(() => {
+    if (!user || !profile) return
+
+    async function loadDashboard() {
+      try {
+        if (profile?.role === "donor") {
+          // Fetch donor stats
+          const { data: donations } = await supabase
+            .from("food_donations")
+            .select("*, food_requests(*)")
+            .eq("donor_id", user!.id)
+            .order("created_at", { ascending: false })
+
+          const total = donations?.length || 0
+          
+          let requestedCount = 0
+          let acceptedCount = 0
+          
+          donations?.forEach(d => {
+            const reqs = d.food_requests || []
+            if (reqs.some((r: { status: string }) => r.status === "pending")) requestedCount++
+            if (reqs.some((r: { status: string }) => r.status === "accepted")) acceptedCount++
+          })
+
+          setStats({
+            total,
+            available: total - requestedCount - acceptedCount,
+            requested: requestedCount,
+            accepted: acceptedCount
+          })
+          setRecentItems(donations?.slice(0, 5) || [])
+          
+        } else if (profile?.role === "ngo") {
+          // Fetch ngo stats
+          const { data: availableFood } = await supabase
+            .from("food_donations")
+            .select("*")
+            // A donation is available if it's not accepted, for MVP we just fetch all
+            // Ideally we check if it has accepted requests
+            
+          const { data: myRequests } = await supabase
+            .from("food_requests")
+            .select("*, food_donations(*)")
+            .eq("ngo_id", user!.id)
+            .order("requested_at", { ascending: false })
+
+          const totalRequests = myRequests?.length || 0
+          const accepted = myRequests?.filter(r => r.status === "accepted").length || 0
+          const pending = myRequests?.filter(r => r.status === "pending").length || 0
+
+          // A simple way to count available: total - anything accepted
+          const { data: acceptedRequests } = await supabase
+            .from("food_requests")
+            .select("food_id")
+            .eq("status", "accepted")
+            
+          const acceptedFoodIds = new Set((acceptedRequests || []).map(r => r.food_id))
+          const trulyAvailable = (availableFood || []).filter(f => !acceptedFoodIds.has(f.id)).length
+
+          setStats({
+            availableFood: trulyAvailable,
+            totalRequests,
+            pending,
+            accepted
+          })
+          setRecentItems(myRequests?.slice(0, 5) || [])
+        }
+      } catch (error) {
+        console.error("Dashboard error:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadDashboard()
+  }, [user, profile])
+
+  if (authLoading || loading) return <div className="p-8">Loading dashboard...</div>
+  if (!profile) return <div className="p-8">Please log in.</div>
+
+  const isDonor = profile.role === "donor"
+
   return (
     <div className="flex flex-col gap-6 max-w-7xl mx-auto">
       <div className="flex flex-col gap-1">
-        <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Good morning, Operations Team</h2>
-        <p className="text-muted-foreground">Here's what's happening across your rescue network.</p>
+        <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Welcome, {profile.name}</h2>
+        <p className="text-muted-foreground">Here is an overview of your {isDonor ? 'donations' : 'requests'}.</p>
       </div>
 
-      {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <KpiCard 
-          title="Meals rescued" 
-          value={mockAnalytics.mealsRescued.toLocaleString()} 
-          trend={`+${mockAnalytics.mealsRescuedTrend}%`} 
-          icon={<Package className="h-4 w-4 text-muted-foreground" />} 
-        />
-        <KpiCard 
-          title="Active donations" 
-          value={mockAnalytics.activeDonations.toString()} 
-          icon={<AlertCircle className="h-4 w-4 text-muted-foreground" />} 
-        />
-        <KpiCard 
-          title="Pickups in progress" 
-          value={mockAnalytics.pickupsInProgress.toString()} 
-          icon={<Truck className="h-4 w-4 text-muted-foreground" />} 
-        />
-        <KpiCard 
-          title="Food at risk" 
-          value={mockAnalytics.foodAtRisk.toString()} 
-          trend="Action needed"
-          trendCritical
-          icon={<ShieldAlert className="h-4 w-4 text-destructive" />} 
-        />
+        {isDonor ? (
+          <>
+            <KpiCard title="Total Donations" value={stats?.total || 0} icon={<Package className="h-4 w-4 text-muted-foreground" />} />
+            <KpiCard title="Available" value={stats?.available || 0} icon={<AlertCircle className="h-4 w-4 text-emerald-600" />} />
+            <KpiCard title="Requested" value={stats?.requested || 0} icon={<Inbox className="h-4 w-4 text-blue-600" />} />
+            <KpiCard title="Accepted Pickups" value={stats?.accepted || 0} icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />} />
+          </>
+        ) : (
+          <>
+            <KpiCard title="Available Food Nearby" value={stats?.availableFood || 0} icon={<Package className="h-4 w-4 text-emerald-600" />} />
+            <KpiCard title="My Requests" value={stats?.totalRequests || 0} icon={<Inbox className="h-4 w-4 text-muted-foreground" />} />
+            <KpiCard title="Pending Requests" value={stats?.pending || 0} icon={<Clock className="h-4 w-4 text-blue-600" />} />
+            <KpiCard title="Accepted Requests" value={stats?.accepted || 0} icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />} />
+          </>
+        )}
       </div>
 
-      <div className="grid gap-6 md:grid-cols-7">
-        {/* Live Rescue Operations */}
-        <Card className="md:col-span-4 lg:col-span-5 shadow-sm border-border/50">
-          <CardHeader className="pb-3 border-b border-border/50 bg-muted/20">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              Live Rescue Operations
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y">
-              {activeDonations.map(donation => (
-                <div key={donation.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 hover:bg-muted/30 transition-colors">
-                  <div className="flex flex-col gap-1.5 mb-2 sm:mb-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-sm">{donation.id}</span>
-                      <Badge variant="outline" className="text-xs bg-background">{donation.foodType}</Badge>
+      <Card className="shadow-sm border-border/50">
+        <CardHeader className="pb-3 border-b border-border/50 bg-muted/20">
+          <CardTitle className="text-base font-semibold">
+            {isDonor ? 'Recent Donations' : 'Recent Requests'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="divide-y">
+            {recentItems.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">No recent activity.</div>
+            ) : (
+              recentItems.map(item => {
+                const title = isDonor ? item.title : item.food_donations?.title
+                const qty = isDonor ? item.quantity : item.food_donations?.quantity
+                const status = isDonor ? (item.food_requests?.some(r => r.status === 'accepted') ? 'Accepted' : item.food_requests?.some(r => r.status === 'pending') ? 'Requested' : 'Available') : item.status
+
+                return (
+                  <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 hover:bg-muted/30 transition-colors">
+                    <div className="flex flex-col gap-1.5 mb-2 sm:mb-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-sm">{title || "Unknown Food"}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground flex items-center gap-3">
+                        <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {isDonor ? item.pickup_address : item.food_donations?.pickup_address}</span>
+                      </div>
                     </div>
-                    <div className="text-xs text-muted-foreground flex items-center gap-3">
-                      <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {donation.donorName}</span>
-                      <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Expires {donation.safeUntilTime}</span>
+                    <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-2">
+                      <Badge variant="outline">{status}</Badge>
+                      <span className="text-xs font-medium">Qty: {qty}</span>
                     </div>
                   </div>
-                  <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-2">
-                    <StatusBadge status={donation.status} />
-                    <span className="text-xs font-medium">{donation.quantity} {donation.unit}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Urgent Actions */}
-        <div className="md:col-span-3 lg:col-span-2 flex flex-col gap-4">
-          <Card className="border-destructive/20 shadow-sm overflow-hidden">
-            <div className="bg-destructive/10 px-4 py-2 flex items-center gap-2 border-b border-destructive/10">
-              <ShieldAlert className="h-4 w-4 text-destructive" />
-              <span className="text-sm font-semibold text-destructive uppercase tracking-wider">Urgent Action</span>
-            </div>
-            <CardContent className="p-4 flex flex-col gap-3 bg-destructive/5">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h4 className="font-bold">45 vegetarian meals</h4>
-                  <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                    <Clock className="h-3 w-3" /> Expires in 1h 42m
-                  </p>
-                </div>
-              </div>
-              <p className="text-sm font-medium">Find pickup volunteer immediately.</p>
-              <Button size="sm" variant="destructive" className="w-full mt-1">Resolve Issue</Button>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-sm border-border/50">
-            <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm font-semibold">Network Status</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
-              <div className="space-y-4 mt-2">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Volunteer Availability</span>
-                  <span className="font-medium text-emerald-600">High (12 online)</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Shelter Capacity</span>
-                  <span className="font-medium">42% utilized</span>
-                </div>
-                <div className="h-24 w-full bg-muted/50 rounded-lg border border-dashed flex items-center justify-center relative overflow-hidden mt-2">
-                  <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, currentColor 1px, transparent 0)', backgroundSize: '16px 16px' }}></div>
-                  <span className="text-xs font-medium text-muted-foreground relative z-10 flex items-center gap-1">
-                    <MapPin className="h-3 w-3" /> Live Map View (Simulated)
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+                )
+              })
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
 
-function KpiCard({ title, value, trend, icon, trendCritical }: { title: string, value: string, trend?: string, icon: React.ReactNode, trendCritical?: boolean }) {
+function KpiCard({ title, value, icon }: { title: string, value: number | string, icon: React.ReactNode }) {
   return (
     <Card className="shadow-sm border-border/50 hover:shadow-md transition-shadow">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -139,29 +194,7 @@ function KpiCard({ title, value, trend, icon, trendCritical }: { title: string, 
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">{value}</div>
-        {trend && (
-          <p className={`text-xs mt-1 flex items-center ${trendCritical ? 'text-destructive font-medium' : 'text-emerald-600'}`}>
-            {!trendCritical && <ArrowUpRight className="h-3 w-3 mr-1" />}
-            {trend}
-          </p>
-        )}
       </CardContent>
     </Card>
   )
-}
-
-export function StatusBadge({ status }: { status: string }) {
-  switch (status) {
-    case 'Needs Match':
-      return <Badge variant="warning">Needs Match</Badge>
-    case 'Matched':
-      return <Badge variant="success">Matched</Badge>
-    case 'Pickup In Progress':
-    case 'Driver Assigned':
-      return <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-transparent">In Transit</Badge>
-    case 'At Risk':
-      return <Badge variant="destructive">At Risk</Badge>
-    default:
-      return <Badge variant="outline">{status}</Badge>
-  }
 }

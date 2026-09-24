@@ -62,7 +62,7 @@ export async function POST(request: Request) {
       message: "Food donation created successfully!",
       donation: data,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       {
         success: false,

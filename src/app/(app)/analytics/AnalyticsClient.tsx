@@ -1,8 +1,8 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { BarChart3, LineChart, TrendingUp, Package, Users, Building2, Leaf } from "lucide-react"
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, Line, LineChart as RechartsLineChart } from "recharts"
+import { TrendingUp, Package, Building2, Leaf } from "lucide-react"
+import { CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, Line, LineChart as RechartsLineChart } from "recharts"
 import { AnalyticsData } from "@/types"
 
 const impactData = [
@@ -12,13 +12,6 @@ const impactData = [
   { month: "Apr", meals: 2800, co2: 1900 },
   { month: "May", meals: 3200, co2: 2200 },
   { month: "Jun", meals: 3842, co2: 2600 },
-]
-
-const categoryData = [
-  { name: "Prepared", value: 45 },
-  { name: "Produce", value: 25 },
-  { name: "Baked", value: 20 },
-  { name: "Dairy", value: 10 },
 ]
 
 export function AnalyticsClient({ mockAnalytics }: { mockAnalytics: AnalyticsData }) {
@@ -101,7 +94,7 @@ export function AnalyticsClient({ mockAnalytics }: { mockAnalytics: AnalyticsDat
           </CardHeader>
           <CardContent className="flex flex-col gap-6">
             <p className="text-lg leading-relaxed text-foreground font-medium">
-              "This month, FoodFlow helped rescue <span className="text-primary font-bold">3,842 meals</span> that would otherwise have gone to waste."
+              &quot;This month, FoodFlow helped rescue <span className="text-primary font-bold">3,842 meals</span> that would otherwise have gone to waste.&quot;
             </p>
             
             <div className="space-y-4 pt-4 border-t border-border/50">
