@@ -132,7 +132,7 @@ export async function POST(request: Request) {
 
 export async function GET() {
   try {
-    const { data, error } = await authedSupabase
+    const { data, error } = await supabase
       .from("food_requests")
       .select(`
         id,
