@@ -1,4 +1,5 @@
-import { supabase } from "@/lib/supabase"
+import { supabase as defaultSupabase } from "@/lib/supabase"
+import { createClient } from "@supabase/supabase-js"
 import { NextResponse } from "next/server"
 
 export async function POST(request: Request) {
@@ -7,12 +8,19 @@ export async function POST(request: Request) {
     if (!authHeader) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
     }
-    const token = authHeader.replace("Bearer ", "")
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    const token = authHeader.replace(/^Bearer\s+/i, "")
+    const { data: { user }, error: authError } = await defaultSupabase.auth.getUser(token)
     
     if (authError || !user) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
     }
+
+    // Forward the user's JWT so database queries run under their RLS policies.
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { global: { headers: { Authorization: `Bearer ${token}` } } }
+    )
 
     const body = await request.json()
 
