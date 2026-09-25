@@ -24,18 +24,30 @@ export default function DonationDetailsPage() {
   const [loading, setLoading] = useState(true)
   const [requesting, setRequesting] = useState(false)
   const [message, setMessage] = useState("")
+  const [loadError, setLoadError] = useState("")
 
   useEffect(() => {
     async function loadDonation() {
       try {
-        const response = await fetch(`/api/donations/${id}`)
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) {
+          setLoadError("Please log in to view this donation.")
+          return
+        }
+
+        const response = await fetch(`/api/donations/${id}`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        })
         const result = await response.json()
 
         if (response.ok) {
           setDonation(result.donation)
+        } else {
+          setLoadError(result.error || "Could not load this donation.")
         }
       } catch (error) {
         console.error("Error loading donation:", error)
+        setLoadError("Could not load this donation. Please try again.")
       } finally {
         setLoading(false)
       }
@@ -51,9 +63,8 @@ export default function DonationDetailsPage() {
     setMessage("")
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
 
       if (!user) {
         setMessage("Please log in as an NGO before requesting food.")
@@ -64,6 +75,7 @@ export default function DonationDetailsPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${session!.access_token}`,
         },
         body: JSON.stringify({
           food_id: id,
@@ -100,7 +112,7 @@ export default function DonationDetailsPage() {
       <main className="p-8">
         <h1 className="text-2xl font-bold">Donation not found</h1>
         <p className="mt-2 text-gray-600">
-          We could not find this donation.
+          {loadError || "We could not find this donation."}
         </p>
       </main>
     )

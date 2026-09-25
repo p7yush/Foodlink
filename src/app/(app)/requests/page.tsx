@@ -60,6 +60,7 @@ export default function RequestsPage() {
   const [loading, setLoading] = useState(true)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [message, setMessage] = useState("")
+  const [loadError, setLoadError] = useState("")
   const [now, setNow] = useState(() => Date.now())
   const [confirmingPickupId, setConfirmingPickupId] = useState<string | null>(null)
 
@@ -67,6 +68,7 @@ export default function RequestsPage() {
     if (!user || !profile) return
     try {
       if (showLoading) setLoading(true)
+      setLoadError("")
       
       // Fetch all requests along with joined data
       const { data, error } = await supabase
@@ -120,6 +122,7 @@ export default function RequestsPage() {
       }
     } catch (error) {
       console.error("Error loading requests:", error)
+      setLoadError(error instanceof Error ? error.message : "Could not load requests.")
     } finally {
       if (showLoading) setLoading(false)
     }
@@ -228,7 +231,13 @@ export default function RequestsPage() {
           </div>
         )}
 
-        {requests.length === 0 ? (
+        {loadError && (
+          <div className="mb-6 rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive" role="alert">
+            Could not load requests: {loadError}
+          </div>
+        )}
+
+        {loadError ? null : requests.length === 0 ? (
           <div className="rounded-xl border bg-white p-8 text-center shadow-sm">
             <h2 className="text-xl font-semibold">
               No requests yet

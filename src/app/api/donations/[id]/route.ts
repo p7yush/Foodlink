@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { supabase, createAuthedClient } from "@/lib/supabase";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -6,9 +6,20 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authHeader = request.headers.get("Authorization")
+    if (!authHeader) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+    }
+
+    const token = authHeader.replace(/^Bearer\s+/i, "")
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    if (authError || !user) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+    }
+
     const { id } = await params;
 
-    const { data, error } = await supabase
+    const { data, error } = await createAuthedClient(token)
       .from("food_donations")
       .select("*")
       .eq("id", id)
