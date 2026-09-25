@@ -49,6 +49,8 @@ Two database rules do work the application would otherwise have to remember:
 
 Row level security is enabled on all four tables. Reads require a signed-in user, because pickup addresses and contact details are personal data. Writes are restricted to the owning user, so a donor can only post as themselves and a volunteer can only advance their own pickup.
 
+The landing page still needs to show totals to visitors who are not signed in. Rather than opening up the tables, `impact_stats()` is a `security definer` function that returns only aggregate counts, and it is the one thing the anonymous role is allowed to execute.
+
 ## Running it locally
 
 ```bash
@@ -58,6 +60,8 @@ npm install
 ```
 
 Create a Supabase project, then run the contents of `supabase/schema.sql` in the SQL editor. It is safe to run more than once.
+
+To fill an empty database with a worked example, sign up the six accounts listed at the top of [`supabase/seed.sql`](supabase/seed.sql), then run that file. It seeds a network that covers every stage of the rescue flow — food still available, a request awaiting the donor's decision, a run waiting for a volunteer, a delivery in progress and one completed delivery so the impact figures are not zero. It is also safe to run more than once.
 
 Copy the environment template and fill in your project's URL and anon key:
 
