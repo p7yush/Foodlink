@@ -93,9 +93,13 @@ export default function RequestsPage() {
     setMessage("")
 
     try {
+      const { data: { session } } = await supabase.auth.getSession()
       const response = await fetch(`/api/requests/${requestId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify({ status }),
       })
 

@@ -28,7 +28,7 @@ export default function SettingsPage() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="contactEmail">Contact Email</Label>
-                <Input id="contactEmail" type="email" defaultValue="ops@foodflow.org" />
+                <Input id="contactEmail" type="email" defaultValue="ops@foodlink.org" />
               </div>
             </div>
             <div className="grid gap-2">

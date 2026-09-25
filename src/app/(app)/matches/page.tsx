@@ -18,7 +18,7 @@ export default async function MatchesPage() {
           <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             <Network className="h-6 w-6 text-primary" /> Matching Center
           </h2>
-          <p className="text-muted-foreground mt-1">FoodFlow continuously matches available donations with recipient capacity and volunteer availability.</p>
+          <p className="text-muted-foreground mt-1">Foodlink continuously matches available donations with recipient capacity and volunteer availability.</p>
         </div>
       </div>
 

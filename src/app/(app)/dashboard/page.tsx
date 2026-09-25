@@ -15,6 +15,9 @@ type Stats = {
   availableFood?: number
   totalRequests?: number
   pending?: number
+  activePickups?: number
+  completedRuns?: number
+  milesDriven?: number
 }
 
 type DashboardItem = {
@@ -23,12 +26,8 @@ type DashboardItem = {
   quantity?: number
   pickup_address?: string
   status?: string
-  food_requests?: { status: string }[]
-  food_donations?: {
-    title: string
-    quantity: number
-    pickup_address: string
-  }
+  food_requests?: any
+  food_donations?: any
 }
 
 export default function DashboardPage() {
@@ -103,6 +102,22 @@ export default function DashboardPage() {
             accepted
           })
           setRecentItems(myRequests?.slice(0, 5) || [])
+        } else if (profile?.role === "volunteer") {
+          const { data: myPickups } = await supabase
+            .from("pickups")
+            .select("*, food_requests(*, food_donations(*))")
+            .eq("volunteer_id", user!.id)
+            .order("assigned_at", { ascending: false })
+
+          const completed = myPickups?.filter(p => p.status === "completed").length || 0
+          const active = myPickups?.filter(p => p.status !== "completed").length || 0
+
+          setStats({
+            activePickups: active,
+            completedRuns: completed,
+            milesDriven: completed * 3, // rough estimate
+          })
+          setRecentItems(myPickups?.slice(0, 5) || [])
         }
       } catch (error) {
         console.error("Dashboard error:", error)
@@ -121,9 +136,19 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6 max-w-7xl mx-auto">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Welcome, {profile.name}</h2>
-        <p className="text-muted-foreground">Here is an overview of your {isDonor ? 'donations' : 'requests'}.</p>
+      <div className="flex flex-col gap-2 p-8 md:p-10 rounded-[1.5rem] bg-gradient-to-br from-primary/15 via-primary/5 to-background border border-primary/10 shadow-sm relative overflow-hidden mb-2">
+        <div className="absolute -top-10 -right-10 opacity-5 pointer-events-none transform rotate-12">
+          <Package className="w-64 h-64 text-primary" />
+        </div>
+        <div className="flex items-center gap-3 mb-2">
+          <span className="inline-flex items-center justify-center rounded-full bg-primary/20 px-3 py-1 text-xs font-semibold text-primary uppercase tracking-widest ring-1 ring-inset ring-primary/30">
+            {profile.role} Dashboard
+          </span>
+        </div>
+        <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight z-10">Welcome back, {profile.name}!</h2>
+        <p className="text-muted-foreground text-lg z-10 mt-1 max-w-xl">
+          Here is an overview of your {isDonor ? 'donations' : profile.role === 'volunteer' ? 'logistics' : 'requests'} and community impact.
+        </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -133,6 +158,13 @@ export default function DashboardPage() {
             <KpiCard title="Available" value={stats?.available || 0} icon={<AlertCircle className="h-4 w-4 text-emerald-600" />} />
             <KpiCard title="Requested" value={stats?.requested || 0} icon={<Inbox className="h-4 w-4 text-blue-600" />} />
             <KpiCard title="Accepted Pickups" value={stats?.accepted || 0} icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />} />
+          </>
+        ) : profile.role === 'volunteer' ? (
+          <>
+            <KpiCard title="Active Deliveries" value={stats?.activePickups || 0} icon={<Package className="h-4 w-4 text-emerald-600" />} />
+            <KpiCard title="Completed Runs" value={stats?.completedRuns || 0} icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />} />
+            <KpiCard title="Miles Driven" value={stats?.milesDriven || 0} icon={<MapPin className="h-4 w-4 text-muted-foreground" />} />
+            <KpiCard title="Impact Score" value="A+" icon={<AlertCircle className="h-4 w-4 text-blue-600" />} />
           </>
         ) : (
           <>
@@ -147,7 +179,7 @@ export default function DashboardPage() {
       <Card className="shadow-sm border-border/50">
         <CardHeader className="pb-3 border-b border-border/50 bg-muted/20">
           <CardTitle className="text-base font-semibold">
-            {isDonor ? 'Recent Donations' : 'Recent Requests'}
+            {isDonor ? 'Recent Donations' : profile.role === 'volunteer' ? 'Recent Pickups' : 'Recent Requests'}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -156,9 +188,9 @@ export default function DashboardPage() {
               <div className="p-8 text-center text-muted-foreground">No recent activity.</div>
             ) : (
               recentItems.map(item => {
-                const title = isDonor ? item.title : item.food_donations?.title
-                const qty = isDonor ? item.quantity : item.food_donations?.quantity
-                const status = isDonor ? (item.food_requests?.some(r => r.status === 'accepted') ? 'Accepted' : item.food_requests?.some(r => r.status === 'pending') ? 'Requested' : 'Available') : item.status
+                const title = isDonor ? item.title : profile.role === 'volunteer' ? item.food_requests?.food_donations?.title : item.food_donations?.title
+                const qty = isDonor ? item.quantity : profile.role === 'volunteer' ? item.food_requests?.food_donations?.quantity : item.food_donations?.quantity
+                const status = isDonor ? (item.food_requests?.some((r: any) => r.status === 'accepted') ? 'Accepted' : item.food_requests?.some((r: any) => r.status === 'pending') ? 'Requested' : 'Available') : item.status
 
                 return (
                   <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 hover:bg-muted/30 transition-colors">

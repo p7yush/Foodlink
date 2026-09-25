@@ -9,7 +9,7 @@ type Profile = {
   id: string
   name: string
   email: string
-  role: "donor" | "ngo"
+  role: "donor" | "ngo" | "volunteer"
 }
 
 type AuthContextType = {

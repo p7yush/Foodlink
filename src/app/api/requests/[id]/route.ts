@@ -6,6 +6,17 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authHeader = request.headers.get("Authorization")
+    if (!authHeader) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+    }
+    const token = authHeader.replace("Bearer ", "")
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    
+    if (authError || !user) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+    }
+
     const { id } = await params
     const body = await request.json()
 
@@ -30,6 +41,17 @@ export async function PATCH(
         { status: 400 }
       )
     }
+    
+    // Verify user owns the donation
+    const { data: requestInfo } = await supabase
+      .from("food_requests")
+      .select("*, food_donations(donor_id)")
+      .eq("id", id)
+      .single()
+      
+    if (!requestInfo || requestInfo.food_donations?.donor_id !== user.id) {
+      return NextResponse.json({ success: false, error: "Unauthorized to update this request" }, { status: 403 })
+    }
 
     const { data, error } = await supabase
       .from("food_requests")
@@ -39,7 +61,7 @@ export async function PATCH(
       .eq("id", id)
       .select()
       .single()
-
+      
     if (error) {
       console.error("UPDATE REQUEST ERROR:", error)
 
@@ -50,6 +72,13 @@ export async function PATCH(
         },
         { status: 500 }
       )
+    }
+    
+    if (status === "accepted" && requestInfo.food_id) {
+      await supabase
+        .from("food_donations")
+        .update({ status: "Claimed" })
+        .eq("id", requestInfo.food_id)
     }
 
     return NextResponse.json({

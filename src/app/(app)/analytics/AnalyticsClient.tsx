@@ -94,7 +94,7 @@ export function AnalyticsClient({ mockAnalytics }: { mockAnalytics: AnalyticsDat
           </CardHeader>
           <CardContent className="flex flex-col gap-6">
             <p className="text-lg leading-relaxed text-foreground font-medium">
-              &quot;This month, FoodFlow helped rescue <span className="text-primary font-bold">3,842 meals</span> that would otherwise have gone to waste.&quot;
+              &quot;This month, Foodlink helped rescue <span className="text-primary font-bold">3,842 meals</span> that would otherwise have gone to waste.&quot;
             </p>
             
             <div className="space-y-4 pt-4 border-t border-border/50">

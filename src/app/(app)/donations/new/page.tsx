@@ -90,10 +90,15 @@ export default function CreateDonationPage() {
         return
       }
 
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
       const response = await fetch("/api/donations", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
         },
         body: JSON.stringify({
           title: foodName,

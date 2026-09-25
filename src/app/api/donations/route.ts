@@ -1,8 +1,20 @@
 import { supabase } from "@/lib/supabase";
 import { NextResponse } from "next/server";
+import { geocodeAddress } from "@/lib/utils";
 
 export async function POST(request: Request) {
   try {
+    const authHeader = request.headers.get("Authorization")
+    if (!authHeader) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+    }
+    const token = authHeader.replace("Bearer ", "")
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    
+    if (authError || !user) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+    }
+
     const body = await request.json();
 
     const {
@@ -14,8 +26,20 @@ export async function POST(request: Request) {
       latitude,
       longitude,
       pickup_address,
-      donor_id,
     } = body;
+    
+    const donor_id = user.id;
+
+    let finalLat = latitude;
+    let finalLng = longitude;
+    
+    if (pickup_address && (!finalLat || !finalLng)) {
+      const coords = await geocodeAddress(pickup_address);
+      if (coords) {
+        finalLat = coords.lat;
+        finalLng = coords.lng;
+      }
+    }
 
     if (!title || !quantity) {
       return NextResponse.json(
@@ -36,8 +60,8 @@ export async function POST(request: Request) {
           quantity,
           food_type,
           expiry_time,
-          latitude,
-          longitude,
+          latitude: finalLat,
+          longitude: finalLng,
           pickup_address,
           donor_id,
         },

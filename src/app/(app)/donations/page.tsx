@@ -75,9 +75,14 @@ export default function DonationsPage() {
   async function handleRequest(foodId: string) {
     setRequestingId(foodId)
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      
       const response = await fetch("/api/requests", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify({ food_id: foodId, ngo_id: user?.id })
       })
       const result = await response.json()

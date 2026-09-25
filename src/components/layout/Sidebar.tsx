@@ -40,7 +40,14 @@ export function Sidebar() {
     { name: "My Requests", href: "/requests", icon: Inbox },
   ]
 
-  const navItems = profile?.role === "donor" ? donorLinks : ngoLinks
+  const volunteerLinks = [
+    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { name: "Available Pickups", href: "/volunteer/pickups", icon: PackageSearch },
+    { name: "Pickup History", href: "/volunteer/history", icon: Inbox },
+    { name: "My Impact", href: "/volunteer/impact", icon: Leaf },
+  ]
+
+  const navItems = profile?.role === "donor" ? donorLinks : profile?.role === "volunteer" ? volunteerLinks : ngoLinks
 
   return (
     <div className="hidden border-r bg-background md:flex w-64 flex-col justify-between">

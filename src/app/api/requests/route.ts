@@ -3,17 +3,47 @@ import { NextResponse } from "next/server"
 
 export async function POST(request: Request) {
   try {
+    const authHeader = request.headers.get("Authorization")
+    if (!authHeader) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+    }
+    const token = authHeader.replace("Bearer ", "")
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    
+    if (authError || !user) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+    }
+
     const body = await request.json()
 
-    const { food_id, ngo_id } = body
+    const { food_id } = body
+    const ngo_id = user.id
 
-    if (!food_id || !ngo_id) {
+    if (!food_id) {
       return NextResponse.json(
         {
           success: false,
-          error: "Food ID and NGO ID are required",
+          error: "Food ID is required",
         },
         { status: 400 }
+      )
+    }
+
+    // Check if request already exists
+    const { data: existingRequest } = await supabase
+      .from("food_requests")
+      .select("id")
+      .eq("food_id", food_id)
+      .eq("ngo_id", ngo_id)
+      .maybeSingle()
+      
+    if (existingRequest) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "You have already requested this food item",
+        },
+        { status: 409 }
       )
     }
 

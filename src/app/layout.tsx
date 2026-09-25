@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Outfit } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 
-const inter = Inter({
-  variable: "--font-inter",
+const outfit = Outfit({
+  variable: "--font-outfit",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "FoodFlow | Real-Time Food Rescue & Redistribution",
-  description: "FoodFlow connects surplus food from restaurants and cafeterias with nearby shelters and volunteers in real time.",
+  title: "Foodlink | Real-Time Food Rescue & Redistribution",
+  description: "Foodlink connects surplus food from restaurants and cafeterias with nearby shelters and volunteers in real time.",
 };
 
 export default function RootLayout({
@@ -19,8 +19,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col bg-background text-foreground">
+    <html lang="en" className={`${outfit.variable} h-full antialiased`}>
+      <body className="min-h-full flex flex-col bg-background text-foreground selection:bg-primary/30 selection:text-primary">
         <AuthProvider>
           {children}
         </AuthProvider>
