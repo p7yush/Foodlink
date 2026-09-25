@@ -33,9 +33,14 @@ export default function CreateDonationPage() {
   const [category, setCategory] = useState("")
   const [dietary, setDietary] = useState("")
   const [quantity, setQuantity] = useState("")
+
   const [location, setLocation] = useState(
     "Main Kitchen - Rear Entrance"
   )
+
+  // Safe-until time
+  const [safeUntil, setSafeUntil] = useState("15:30")
+
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Check whether the user is logged in
@@ -67,6 +72,7 @@ export default function CreateDonationPage() {
       setCategory("Prepared Food")
       setDietary("Vegetarian")
       setQuantity("45")
+      setSafeUntil("15:30")
     }, 1500)
   }
 
@@ -75,6 +81,11 @@ export default function CreateDonationPage() {
       alert(
         "Please fill in food name, quantity, and pickup location."
       )
+      return
+    }
+
+    if (!safeUntil) {
+      alert("Please select a safe-until time.")
       return
     }
 
@@ -94,11 +105,24 @@ export default function CreateDonationPage() {
         data: { session },
       } = await supabase.auth.getSession()
 
+      // Create today's date in YYYY-MM-DD format
+      const today = new Date()
+      const year = today.getFullYear()
+      const month = String(today.getMonth() + 1).padStart(2, "0")
+      const day = String(today.getDate()).padStart(2, "0")
+
+      // Combine today's date with the selected safe-until time
+      const expiryTime = `${year}-${month}-${day}T${safeUntil}:00`
+
       const response = await fetch("/api/donations", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          ...(session
+            ? {
+                Authorization: `Bearer ${session.access_token}`,
+              }
+            : {}),
         },
         body: JSON.stringify({
           title: foodName,
@@ -107,6 +131,10 @@ export default function CreateDonationPage() {
           food_type: dietary || category,
           pickup_address: location,
           donor_id: user.id,
+
+          // IMPORTANT:
+          // Save the Safe-until time as the donation expiry time
+          expiry_time: expiryTime,
         }),
       })
 
@@ -264,7 +292,7 @@ export default function CreateDonationPage() {
                         </p>
 
                         <p className="font-medium text-sm text-destructive">
-                          3:30 PM today
+                          {safeUntil}
                         </p>
                       </div>
                     </div>
@@ -380,7 +408,10 @@ export default function CreateDonationPage() {
                   <Input
                     id="safeUntil"
                     type="time"
-                    defaultValue="15:30"
+                    value={safeUntil}
+                    onChange={(e) =>
+                      setSafeUntil(e.target.value)
+                    }
                   />
                 </div>
               </div>
