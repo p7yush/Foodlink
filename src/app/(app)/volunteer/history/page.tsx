@@ -3,14 +3,31 @@
 import { useEffect, useState } from "react"
 import { useAuth } from "@/components/providers/AuthProvider"
 import { supabase } from "@/lib/supabase"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { MapPin, Calendar, Clock, CheckCircle2 } from "lucide-react"
+import { Calendar, Clock, CheckCircle2 } from "lucide-react"
+
+type NamedProfile = { name: string } | null
+
+type HistoryRow = {
+  id: string
+  status: string
+  assigned_at: string
+  completed_at: string | null
+  food_requests: {
+    profiles?: NamedProfile
+    food_donations?: {
+      title?: string
+      quantity?: number
+      profiles?: NamedProfile
+    } | null
+  } | null
+}
 
 export default function PickupHistory() {
   const { user, profile } = useAuth()
   const [loading, setLoading] = useState(true)
-  const [history, setHistory] = useState<any[]>([])
+  const [history, setHistory] = useState<HistoryRow[]>([])
 
   useEffect(() => {
     async function fetchHistory() {
@@ -26,7 +43,7 @@ export default function PickupHistory() {
         if (error) throw error
 
         if (data) {
-          setHistory(data)
+          setHistory(data as unknown as HistoryRow[])
         }
       } catch (err) {
         console.error("Error fetching history:", err)

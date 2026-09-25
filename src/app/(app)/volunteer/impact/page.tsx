@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react"
 import { useAuth } from "@/components/providers/AuthProvider"
 import { supabase } from "@/lib/supabase"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
+import { KG_PER_MEAL } from "@/lib/impact"
 import { Package, Truck, MapPin, Leaf, Trophy } from "lucide-react"
 
 export default function VolunteerImpact() {
@@ -40,7 +41,7 @@ export default function VolunteerImpact() {
             mealsRescued: totalMeals,
             pickupsCompleted: data.length,
             distanceTravelled: data.length * 3.4, // avg 3.4 km per pickup
-            foodDiverted: totalMeals * 0.4 // avg 0.4 kg per meal
+            foodDiverted: totalMeals * KG_PER_MEAL
           })
         }
       } catch (err) {
@@ -63,7 +64,7 @@ export default function VolunteerImpact() {
     <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
       <div className="flex flex-col gap-2 mb-8">
         <h1 className="text-3xl font-extrabold tracking-tight">Your Impact</h1>
-        <p className="text-muted-foreground text-lg">See the real-world difference you're making.</p>
+        <p className="text-muted-foreground text-lg">See the real-world difference you&apos;re making.</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">

@@ -33,9 +33,24 @@ function SignupContent() {
     }
 
     try {
+      let lat: number | null = null
+      let lng: number | null = null
+      if (address) {
+        const coords = await geocodeAddress(address)
+        if (coords) {
+          lat = coords.lat
+          lng = coords.lng
+        }
+      }
+
+      // The profile row is created from this metadata by the
+      // on_auth_user_created trigger, so it does not depend on a session.
       const { data: { user }, error: signupError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: { name, role, address, latitude: lat, longitude: lng },
+        },
       })
 
       if (signupError) {
@@ -46,35 +61,6 @@ function SignupContent() {
 
       if (!user) {
         setMessage("Account could not be created. Please try again.")
-        setLoading(false)
-        return
-      }
-
-      let lat = null
-      let lng = null
-      if (address) {
-        const coords = await geocodeAddress(address)
-        if (coords) {
-          lat = coords.lat
-          lng = coords.lng
-        }
-      }
-
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .insert([{ 
-          id: user.id, 
-          name, 
-          email, 
-          role, 
-          address, 
-          latitude: lat, 
-          longitude: lng 
-        }])
-
-      if (profileError) {
-        console.error("PROFILE CREATION ERROR:", profileError)
-        setMessage("Account was created, but your profile could not be saved: " + profileError.message)
         setLoading(false)
         return
       }

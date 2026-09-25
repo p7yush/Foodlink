@@ -1,36 +1,91 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Foodlink
 
-## Getting Started
+A real-time food rescue platform that connects surplus food from donors to NGOs and shelters, and gets it moved by volunteer drivers before it spoils.
 
-First, run the development server:
+**Live demo: [foodlink-iota.vercel.app](https://foodlink-iota.vercel.app)**
+
+## The problem
+
+Edible surplus food is thrown away while people nearby go hungry. The hard part is not finding a shelter, it is finding one that can be reached *before the food becomes unsafe*, that has room for it, and that accepts that kind of food. Foodlink treats that deadline as the central constraint rather than an afterthought.
+
+## What it does
+
+Three roles share one live network:
+
+- **Donors** (restaurants, canteens, event caterers) post surplus food with a quantity, a type and a safe-until time. The pickup address is geocoded so distances are real.
+- **NGOs and shelters** browse what is available nearby and request what they can take. The donor accepts or rejects.
+- **Volunteer drivers** claim accepted requests and move through a delivery checklist: en route, arrived, collected, arrived at the shelter, delivered.
+
+Alongside that:
+
+- **Matching Center** scores every available donation against every NGO. A recipient must first clear hard gates — it must be accepting deliveries, have enough capacity, accept that food type, and be reachable before the safe-until time. Only recipients that pass are scored and ranked, on proximity, the time margin on arrival, and how well the quantity fits their capacity. When nothing is feasible the page says which gate each recipient failed instead of showing a weak match.
+- **Impact analytics** are derived from completed deliveries, never hard-coded: meals rescued, food diverted, CO₂e avoided, deliveries completed, and how much food is currently within two hours of expiring.
+
+## Tech stack
+
+| Layer | Choice |
+| --- | --- |
+| Framework | Next.js 16 (App Router, Turbopack) |
+| Language | TypeScript |
+| UI | Tailwind CSS 4, Recharts, Lucide icons |
+| Database | Supabase (Postgres) with row level security |
+| Auth | Supabase Auth, email and password |
+| Geocoding | OpenStreetMap Nominatim |
+| Hosting | Vercel |
+
+## Data model
+
+Four tables, all defined in [`supabase/schema.sql`](supabase/schema.sql):
+
+- `profiles` — one row per account, linked to `auth.users`, holding the role (`donor`, `ngo`, `volunteer`), location and, for NGOs, capacity and accepted food types.
+- `food_donations` — what a donor has posted, including `expiry_time` and coordinates.
+- `food_requests` — an NGO asking for a donation. A unique constraint on `(food_id, ngo_id)` stops duplicate requests.
+- `pickups` — a volunteer's delivery run against one accepted request, with a timestamp per stage.
+
+Two database rules do work the application would otherwise have to remember:
+
+- A trigger on `auth.users` creates the matching `profiles` row from the signup metadata, so an account can never exist without a profile.
+- A trigger on `pickups` closes out the request and the donation when a delivery completes, in the same transaction, which also means a volunteer needs no write access to either table.
+
+Row level security is enabled on all four tables. Reads require a signed-in user, because pickup addresses and contact details are personal data. Writes are restricted to the owning user, so a donor can only post as themselves and a volunteer can only advance their own pickup.
+
+## Running it locally
+
+```bash
+git clone https://github.com/p7yush/Foodlink.git
+cd Foodlink
+npm install
+```
+
+Create a Supabase project, then run the contents of `supabase/schema.sql` in the SQL editor. It is safe to run more than once.
+
+Copy the environment template and fill in your project's URL and anon key:
+
+```bash
+cp .env.example .env.local
+```
+
+Then start the dev server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) and sign up three accounts, one per role, to see the full flow.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the dev server |
+| `npm run build` | Production build, including type checking |
+| `npm run lint` | ESLint |
 
-## Learn More
+## Known limitations
 
-To learn more about Next.js, take a look at the following resources:
+Stated plainly, because each is contained to one place:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Travel times are estimated**, not routed: straight-line distance at an assumed 25 km/h urban average. Every estimate goes through `estimateTravelTime` in `src/lib/utils.ts`, so swapping in a routing API is a one-function change.
+- **Geocoding depends on Nominatim**, which is rate limited and occasionally misses an address. When it does, the record is saved without coordinates and the matcher reports distance as unknown rather than guessing.
+- **Notifications are in-app only.** There is no SMS or push.
+- **Distance filtering happens in the client** over a city-sized network. At larger scale the coordinates should become a PostGIS `geography` column with a spatial index and the radius filter should move into SQL.

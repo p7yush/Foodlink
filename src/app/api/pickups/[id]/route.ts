@@ -1,5 +1,4 @@
-import { supabase as defaultSupabase } from "@/lib/supabase"
-import { createClient } from "@supabase/supabase-js"
+import { supabase as defaultSupabase, createAuthedClient } from "@/lib/supabase"
 import { NextResponse } from "next/server"
 
 export async function PATCH(
@@ -19,13 +18,7 @@ export async function PATCH(
     }
 
     // Create an authenticated client to pass RLS
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        global: { headers: { Authorization: `Bearer ${token}` } }
-      }
-    )
+    const supabase = createAuthedClient(token)
 
     const { id } = await params
     const body = await request.json()
@@ -47,7 +40,7 @@ export async function PATCH(
     }
 
     // Determine timestamp field based on status
-    const updateData: any = { status }
+    const updateData: Record<string, string> = { status }
     if (status === "arrived_at_donor") updateData.arrived_at_donor_at = new Date().toISOString()
     if (status === "collected") updateData.collected_at = new Date().toISOString()
     if (status === "arrived_at_ngo") updateData.arrived_at_ngo_at = new Date().toISOString()
@@ -68,20 +61,14 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: error.message }, { status: 500 })
     }
 
-    // If completed, maybe update food_requests or food_donations status
-    if (updateData.status === "completed") {
-      // Update food_requests to completed
-      await supabase
-        .from("food_requests")
-        .update({ status: "completed" })
-        .eq("id", pickupInfo.request_id)
-    }
+    // Closing out the request and the donation is handled by the
+    // pickups_sync_completed trigger, which runs inside the same transaction.
 
     return NextResponse.json({
       success: true,
       pickup: data
     })
-  } catch (err: any) {
+  } catch (err) {
     console.error(err)
     return NextResponse.json({ success: false, error: "Server Error" }, { status: 500 })
   }

@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase"
+import { supabase, createAuthedClient } from "@/lib/supabase"
 import { NextResponse } from "next/server"
 
 export async function POST(request: Request) {
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await createAuthedClient(token)
       .from("food_requests")
       .insert([
         {

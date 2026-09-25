@@ -1,22 +1,44 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams } from "next/navigation"
 import { useAuth } from "@/components/providers/AuthProvider"
 import { supabase } from "@/lib/supabase"
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { MapPin, ArrowRight, CheckCircle2, Clock } from "lucide-react"
+import { MapPin, CheckCircle2, Clock } from "lucide-react"
 import Link from "next/link"
 import { calculateDistance, estimateTravelTime } from "@/lib/utils"
 
+type DestinationProfile = {
+  name: string
+  address: string | null
+  latitude: number | null
+  longitude: number | null
+} | null
+
+type PickupDetailRow = {
+  id: string
+  status: string
+  food_requests: {
+    profiles?: DestinationProfile
+    food_donations: {
+      title: string
+      quantity: number
+      pickup_address: string | null
+      latitude: number | null
+      longitude: number | null
+      profiles?: { name: string } | null
+    } | null
+  } | null
+}
+
 export default function PickupDetail() {
   const { id } = useParams()
-  const router = useRouter()
-  const { user, profile } = useAuth()
+  const { user } = useAuth()
   const [loading, setLoading] = useState(true)
-  const [pickup, setPickup] = useState<any>(null)
+  const [pickup, setPickup] = useState<PickupDetailRow | null>(null)
   const [updating, setUpdating] = useState(false)
 
   useEffect(() => {
@@ -26,12 +48,14 @@ export default function PickupDetail() {
       try {
         const { data, error } = await supabase
           .from("pickups")
-          .select("*, food_requests(*, food_donations(*, profiles!food_donations_donor_id_fkey(name)), profiles!food_requests_ngo_id_fkey(name))")
+          .select(
+            "*, food_requests(*, food_donations(*, profiles!food_donations_donor_id_fkey(name)), profiles!food_requests_ngo_id_fkey(name, address, latitude, longitude))"
+          )
           .eq("id", id)
           .single()
 
         if (error) throw error
-        setPickup(data)
+        setPickup(data as unknown as PickupDetailRow)
       } catch (err) {
         console.error(err)
       } finally {
@@ -58,7 +82,7 @@ export default function PickupDetail() {
 
       if (res.ok) {
         const result = await res.json()
-        setPickup((prev: any) => ({ ...prev, status: result.pickup.status }))
+        setPickup(prev => (prev ? { ...prev, status: result.pickup.status } : prev))
       } else {
         alert("Failed to update status")
       }
@@ -73,9 +97,11 @@ export default function PickupDetail() {
   if (!pickup) return <div className="p-8">Pickup not found or access denied.</div>
 
   const req = pickup.food_requests
-  const donation = req.food_donations
-  const donorName = donation.profiles?.name
-  const ngoName = req.profiles?.name
+  const donation = req?.food_donations
+  if (!req || !donation) return <div className="p-8">This pickup is missing its donation record.</div>
+
+  const donorName = donation.profiles?.name ?? "Unknown Donor"
+  const ngoName = req.profiles?.name ?? "Unknown NGO"
 
   return (
     <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-6">
@@ -140,7 +166,7 @@ export default function PickupDetail() {
             
             {pickup.status === 'en_route_to_donor' && (
               <Button disabled={updating} onClick={() => updateStatus('arrived_at_donor')} className="w-full py-6 text-lg rounded-xl shadow-md">
-                I've Arrived at Donor
+                I&apos;ve Arrived at Donor
               </Button>
             )}
 
@@ -158,7 +184,7 @@ export default function PickupDetail() {
 
             {pickup.status === 'en_route_to_ngo' && (
               <Button disabled={updating} onClick={() => updateStatus('arrived_at_ngo')} className="w-full py-6 text-lg rounded-xl shadow-md">
-                I've Arrived at NGO
+                I&apos;ve Arrived at NGO
               </Button>
             )}
 

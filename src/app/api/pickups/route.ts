@@ -1,5 +1,4 @@
-import { supabase as defaultSupabase } from "@/lib/supabase"
-import { createClient } from "@supabase/supabase-js"
+import { supabase as defaultSupabase, createAuthedClient } from "@/lib/supabase"
 import { NextResponse } from "next/server"
 
 export async function POST(request: Request) {
@@ -16,13 +15,7 @@ export async function POST(request: Request) {
     }
 
     // Create an authenticated client to pass RLS
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        global: { headers: { Authorization: `Bearer ${token}` } }
-      }
-    )
+    const supabase = createAuthedClient(token)
 
     const body = await request.json()
     const { request_id } = body
@@ -75,7 +68,7 @@ export async function POST(request: Request) {
       pickup: data
     })
 
-  } catch (error: any) {
+  } catch (error) {
     console.error("API ERROR:", error)
     return NextResponse.json({ success: false, error: "Internal Server Error" }, { status: 500 })
   }

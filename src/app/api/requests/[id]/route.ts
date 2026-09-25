@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase"
+import { supabase, createAuthedClient } from "@/lib/supabase"
 import { NextResponse } from "next/server"
 
 export async function PATCH(
@@ -53,7 +53,9 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: "Unauthorized to update this request" }, { status: 403 })
     }
 
-    const { data, error } = await supabase
+    const db = createAuthedClient(token)
+
+    const { data, error } = await db
       .from("food_requests")
       .update({
         status,
@@ -75,7 +77,7 @@ export async function PATCH(
     }
     
     if (status === "accepted" && requestInfo.food_id) {
-      await supabase
+      await db
         .from("food_donations")
         .update({ status: "Claimed" })
         .eq("id", requestInfo.food_id)

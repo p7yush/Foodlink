@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -37,7 +37,7 @@ export default function DonationsPage() {
   const [loading, setLoading] = useState(true)
   const [requestingId, setRequestingId] = useState<string | null>(null)
 
-  async function fetchDonations() {
+  const fetchDonations = useCallback(async () => {
     try {
       if (!user || !profile) return
       
@@ -64,13 +64,12 @@ export default function DonationsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user, profile])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchDonations()
-  }, [user, profile])
+  }, [fetchDonations])
 
   async function handleRequest(foodId: string) {
     setRequestingId(foodId)

@@ -20,14 +20,27 @@ type Stats = {
   milesDriven?: number
 }
 
+type DonationSummary = {
+  title?: string
+  quantity?: number
+  pickup_address?: string
+}
+
+type RequestSummary = {
+  status?: string
+  food_donations?: DonationSummary | null
+}
+
+// A donor row carries many requests, while a volunteer's pickup row carries the
+// single request it was created from, so this field is either shape.
 type DashboardItem = {
   id: string
   title?: string
   quantity?: number
   pickup_address?: string
   status?: string
-  food_requests?: any
-  food_donations?: any
+  food_requests?: RequestSummary[] | RequestSummary | null
+  food_donations?: DonationSummary | null
 }
 
 export default function DashboardPage() {
@@ -188,9 +201,21 @@ export default function DashboardPage() {
               <div className="p-8 text-center text-muted-foreground">No recent activity.</div>
             ) : (
               recentItems.map(item => {
-                const title = isDonor ? item.title : profile.role === 'volunteer' ? item.food_requests?.food_donations?.title : item.food_donations?.title
-                const qty = isDonor ? item.quantity : profile.role === 'volunteer' ? item.food_requests?.food_donations?.quantity : item.food_donations?.quantity
-                const status = isDonor ? (item.food_requests?.some((r: any) => r.status === 'accepted') ? 'Accepted' : item.food_requests?.some((r: any) => r.status === 'pending') ? 'Requested' : 'Available') : item.status
+                const requestList = Array.isArray(item.food_requests) ? item.food_requests : []
+                const singleRequest = Array.isArray(item.food_requests) ? null : item.food_requests
+                const nestedDonation = profile.role === 'volunteer'
+                  ? singleRequest?.food_donations
+                  : item.food_donations
+
+                const title = isDonor ? item.title : nestedDonation?.title
+                const qty = isDonor ? item.quantity : nestedDonation?.quantity
+                const status = isDonor
+                  ? requestList.some(r => r.status === 'accepted')
+                    ? 'Accepted'
+                    : requestList.some(r => r.status === 'pending')
+                      ? 'Requested'
+                      : 'Available'
+                  : item.status
 
                 return (
                   <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 hover:bg-muted/30 transition-colors">
@@ -199,7 +224,7 @@ export default function DashboardPage() {
                         <span className="font-semibold text-sm">{title || "Unknown Food"}</span>
                       </div>
                       <div className="text-xs text-muted-foreground flex items-center gap-3">
-                        <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {isDonor ? item.pickup_address : item.food_donations?.pickup_address}</span>
+                        <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {isDonor ? item.pickup_address : nestedDonation?.pickup_address}</span>
                       </div>
                     </div>
                     <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-2">

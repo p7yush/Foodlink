@@ -3,16 +3,44 @@
 import { useEffect, useState } from "react"
 import { useAuth } from "@/components/providers/AuthProvider"
 import { supabase } from "@/lib/supabase"
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { MapPin, Clock, Package, AlertCircle } from "lucide-react"
 import { calculateDistance, estimateTravelTime } from "@/lib/utils"
+import { formatCountdown, minutesUntil } from "@/lib/matching"
+
+type DestinationProfile = {
+  name: string
+  address: string | null
+  latitude: number | null
+  longitude: number | null
+} | null
+
+type AvailableRequest = {
+  id: string
+  status: string
+  food_donations: {
+    title: string
+    quantity: number
+    food_type: string | null
+    expiry_time: string
+    pickup_address: string | null
+    latitude: number | null
+    longitude: number | null
+    profiles?: { name: string } | null
+  } | null
+  profiles?: DestinationProfile
+  pickups?: { id: string }[] | null
+}
 
 export default function AvailablePickups() {
   const { user, profile } = useAuth()
   const [loading, setLoading] = useState(true)
-  const [pickups, setPickups] = useState<any[]>([])
+  const [pickups, setPickups] = useState<AvailableRequest[]>([])
+  // Captured when the list loads so urgency is computed from a fixed instant
+  // rather than by reading the clock during render.
+  const [fetchedAt, setFetchedAt] = useState(0)
 
   useEffect(() => {
     async function fetchPickups() {
@@ -23,15 +51,18 @@ export default function AvailablePickups() {
         // We will filter on the frontend for those without a pickup record
         const { data, error } = await supabase
           .from("food_requests")
-          .select("*, food_donations(*, profiles!food_donations_donor_id_fkey(name)), profiles!food_requests_ngo_id_fkey(name), pickups(*)")
+          .select(
+            "*, food_donations(*, profiles!food_donations_donor_id_fkey(name)), profiles!food_requests_ngo_id_fkey(name, address, latitude, longitude), pickups(id)"
+          )
           .eq("status", "accepted")
 
         if (error) throw error
 
         if (data) {
           // Filter out requests that already have an assigned pickup
-          const available = data.filter(req => !req.pickups || req.pickups.length === 0)
-          setPickups(available)
+          const rows = data as unknown as AvailableRequest[]
+          setFetchedAt(Date.now())
+          setPickups(rows.filter(request => !request.pickups || request.pickups.length === 0))
         }
       } catch (err) {
         console.error("Error fetching pickups:", err)
@@ -92,8 +123,12 @@ export default function AvailablePickups() {
         ) : (
           pickups.map(pickup => {
             const donation = pickup.food_donations
+            if (!donation) return null
+
             const ngoName = pickup.profiles?.name || "Unknown NGO"
-            const donorName = donation?.profiles?.name || "Unknown Donor"
+            const donorName = donation.profiles?.name || "Unknown Donor"
+            const minutesLeft = minutesUntil(donation.expiry_time, fetchedAt)
+            const urgency = minutesLeft <= 120 ? "HIGH" : minutesLeft <= 360 ? "MEDIUM" : "LOW"
 
             return (
               <Card key={pickup.id} className="rounded-2xl border-border/50 shadow-sm overflow-hidden flex flex-col">
@@ -103,9 +138,12 @@ export default function AvailablePickups() {
                     <h3 className="text-xl font-bold">{donation.title}</h3>
                     <p className="font-medium text-muted-foreground text-sm mt-1">{donation.quantity} meals</p>
                   </div>
-                  {/* Mock Urgency */}
-                  <Badge variant="destructive" className="flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" /> HIGH
+                  <Badge
+                    variant={urgency === "LOW" ? "secondary" : "destructive"}
+                    className="flex items-center gap-1 shrink-0"
+                    title={formatCountdown(minutesLeft)}
+                  >
+                    <AlertCircle className="w-3 h-3" /> {urgency}
                   </Badge>
                 </div>
                 

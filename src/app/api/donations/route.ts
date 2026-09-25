@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase"
+import { supabase, createAuthedClient } from "@/lib/supabase"
 import { NextResponse } from "next/server"
 import { geocodeAddress } from "@/lib/utils"
 
@@ -86,8 +86,8 @@ export async function POST(request: Request) {
       }
     }
 
-    // Create donation
-    const { data, error } = await supabase
+    // Write as the signed-in donor so row level security allows the insert
+    const { data, error } = await createAuthedClient(token)
       .from("food_donations")
       .insert([
         {
