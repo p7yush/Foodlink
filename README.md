@@ -80,6 +80,17 @@ Open [http://localhost:3000](http://localhost:3000) and sign up three accounts, 
 | `npm run dev` | Start the dev server |
 | `npm run build` | Production build, including type checking |
 | `npm run lint` | ESLint |
+| `npm test` | Unit tests for the matching and impact logic |
+
+## Tests
+
+The matching algorithm and the impact maths are pure functions with no I/O, so they are tested directly. The suite covers the rules that matter rather than chasing coverage:
+
+- A shelter that cannot be reached before the safe-until time is rejected even when it is the closest.
+- A shelter is never offered food it does not accept, and no shelter is offered more than it can hold.
+- An infeasible recipient is excluded outright rather than ranked last.
+- Impact counts only deliveries that actually completed, and ignores a completed pickup whose donation no longer exists.
+- Weight and emissions are derived from the named constants, so the headline figures cannot drift from the stated assumptions.
 
 ## Known limitations
 
