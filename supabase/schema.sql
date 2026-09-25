@@ -202,3 +202,32 @@ create policy pickups_insert_own on public.pickups
 drop policy if exists pickups_update_own on public.pickups;
 create policy pickups_update_own on public.pickups
   for update to authenticated using (volunteer_id = auth.uid()) with check (volunteer_id = auth.uid());
+
+create or replace function public.impact_stats()
+returns json
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select json_build_object(
+    'meals_rescued', coalesce((
+      select sum(d.quantity)
+      from public.pickups p
+      join public.food_requests r on r.id = p.request_id
+      join public.food_donations d on d.id = r.food_id
+      where p.status = 'completed'
+    ), 0),
+    'completed_deliveries', (select count(*) from public.pickups where status = 'completed'),
+    'active_volunteers', (select count(*) from public.profiles where role = 'volunteer'),
+    'partner_shelters', (select count(*) from public.profiles where role = 'ngo'),
+    'donor_partners', (select count(*) from public.profiles where role = 'donor'),
+    'available_now', (
+      select count(*) from public.food_donations
+      where status = 'Available' and expiry_time > now()
+    )
+  );
+$$;
+
+revoke all on function public.impact_stats() from public;
+grant execute on function public.impact_stats() to anon, authenticated;

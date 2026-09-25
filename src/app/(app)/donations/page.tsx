@@ -17,6 +17,8 @@ import { Plus, Search, MapPin, Clock } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/components/providers/AuthProvider"
 import { supabase } from "@/lib/supabase"
+import { donationDisplayStatus, isOpenForRequests } from "@/lib/donation-status"
+import { formatCountdown, minutesUntil } from "@/lib/matching"
 
 type Donation = {
   id: string
@@ -34,6 +36,7 @@ type Donation = {
 export default function DonationsPage() {
   const { user, profile, loading: authLoading } = useAuth()
   const [donations, setDonations] = useState<Donation[]>([])
+  const [fetchedAt, setFetchedAt] = useState(() => Date.now())
   const [loading, setLoading] = useState(true)
   const [requestingId, setRequestingId] = useState<string | null>(null)
 
@@ -42,22 +45,18 @@ export default function DonationsPage() {
       if (!user || !profile) return
       
       let query = supabase.from("food_donations").select("*, food_requests(status, ngo_id)").order("created_at", { ascending: false })
-      
+
       if (profile.role === "donor") {
         query = query.eq("donor_id", user.id)
       } else {
-        // NGOs see all food. We will filter out accepted ones below.
+        query = query.eq("status", "Available")
       }
-      
+
       const { data, error } = await query
       if (!error && data) {
-        if (profile.role === "ngo") {
-          // Filter out donations that are already accepted
-          const available = data.filter(d => !d.food_requests?.some((r: { status: string }) => r.status === "accepted"))
-          setDonations(available)
-        } else {
-          setDonations(data)
-        }
+        const now = Date.now()
+        setFetchedAt(now)
+        setDonations(profile.role === "donor" ? data : data.filter((d) => isOpenForRequests(d, now)))
       }
     } catch (error) {
       console.error(error)
@@ -159,7 +158,7 @@ export default function DonationsPage() {
                         <span className="text-xs text-muted-foreground">Expires</span>
                         <span className="font-semibold flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          {donation.expiry_time ? new Date(donation.expiry_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'N/A'}
+                          {donation.expiry_time ? formatCountdown(minutesUntil(donation.expiry_time, fetchedAt)) : 'N/A'}
                         </span>
                       </div>
                     </div>
@@ -217,10 +216,9 @@ export default function DonationsPage() {
                   </TableRow>
                 ) : (
                   donations.map((donation) => {
-                    const isAccepted = donation.food_requests?.some((r) => r.status === 'accepted')
-                    const isRequested = donation.food_requests?.some((r) => r.status === 'pending')
-                    const displayStatus = isAccepted ? 'Accepted' : isRequested ? 'Requested' : 'Available'
-                    
+                    const displayStatus = donationDisplayStatus(donation, fetchedAt)
+
+
                     return (
                       <TableRow key={donation.id} className="hover:bg-muted/40 transition-colors">
                         <TableCell className="font-medium text-primary">

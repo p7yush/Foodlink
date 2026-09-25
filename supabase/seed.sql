@@ -89,7 +89,7 @@ insert into public.pickups
 select r.id, vol.id, 'collected', now() - interval '80 minutes', now() - interval '60 minutes', now() - interval '45 minutes'
   from public.food_requests r
   join public.food_donations d on d.id = r.food_id and d.title = 'Mixed vegetable pulao'
-  join public.profiles vol on vol.email = 'neha.driver@example.com'
+  join public.profiles vol on vol.email = 'rohit.driver@example.com'
  where not exists (select 1 from public.pickups p where p.request_id = r.id);
 
 insert into public.pickups

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
+import { KG_PER_MEAL } from "@/lib/impact"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -16,16 +17,34 @@ import {
 
 type UserRole = "donor" | "ngo" | null
 
+type NetworkStats = {
+  meals_rescued: number
+  completed_deliveries: number
+  active_volunteers: number
+  partner_shelters: number
+  donor_partners: number
+  available_now: number
+}
+
 export default function LandingPage() {
   const [role, setRole] = useState<UserRole>(null)
   const [loggedIn, setLoggedIn] = useState(false)
   const [checkingUser, setCheckingUser] = useState(true)
+  const [stats, setStats] = useState<NetworkStats | null>(null)
 
   async function handleLogout() {
     await supabase.auth.signOut()
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.assign("/")
   }
+
+  useEffect(() => {
+    async function loadStats() {
+      const { data } = await supabase.rpc("impact_stats")
+      if (data) setStats(data as NetworkStats)
+    }
+    loadStats()
+  }, [])
 
   useEffect(() => {
     async function loadUser() {
@@ -389,10 +408,18 @@ export default function LandingPage() {
           className="w-full py-20 bg-muted/30 border-y"
         >
           <div className="max-w-7xl mx-auto px-6 lg:px-14">
+            <div className="text-center mb-10 space-y-2">
+              <h3 className="text-2xl md:text-3xl font-bold tracking-tight">
+                Live network numbers
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Counted from completed deliveries in the Foodlink database, not estimates.
+              </p>
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 text-center">
               <div className="space-y-2">
                 <h4 className="text-4xl md:text-5xl font-bold tracking-tight text-primary">
-                  12,480
+                  {stats ? stats.meals_rescued.toLocaleString() : "—"}
                 </h4>
 
                 <p className="text-sm md:text-base text-muted-foreground font-medium">
@@ -402,7 +429,7 @@ export default function LandingPage() {
 
               <div className="space-y-2">
                 <h4 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground">
-                  4.2
+                  {stats ? ((stats.meals_rescued * KG_PER_MEAL) / 1000).toFixed(2) : "—"}
                 </h4>
 
                 <p className="text-sm md:text-base text-muted-foreground font-medium">
@@ -412,7 +439,7 @@ export default function LandingPage() {
 
               <div className="space-y-2">
                 <h4 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground">
-                  186
+                  {stats ? stats.active_volunteers : "—"}
                 </h4>
 
                 <p className="text-sm md:text-base text-muted-foreground font-medium">
@@ -422,7 +449,7 @@ export default function LandingPage() {
 
               <div className="space-y-2">
                 <h4 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground">
-                  42
+                  {stats ? stats.partner_shelters : "—"}
                 </h4>
 
                 <p className="text-sm md:text-base text-muted-foreground font-medium">

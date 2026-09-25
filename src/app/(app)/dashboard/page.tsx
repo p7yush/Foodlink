@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/components/providers/AuthProvider"
 import { supabase } from "@/lib/supabase"
+import { donationDisplayStatus, isOpenForRequests } from "@/lib/donation-status"
 import { AlertCircle, Clock, MapPin, Package, Inbox, CheckCircle2 } from "lucide-react"
 
 type Stats = {
@@ -39,6 +40,7 @@ type DashboardItem = {
   quantity?: number
   pickup_address?: string
   status?: string
+  expiry_time?: string | null
   food_requests?: RequestSummary[] | RequestSummary | null
   food_donations?: DonationSummary | null
 }
@@ -62,22 +64,15 @@ export default function DashboardPage() {
             .eq("donor_id", user!.id)
             .order("created_at", { ascending: false })
 
-          const total = donations?.length || 0
-          
-          let requestedCount = 0
-          let acceptedCount = 0
-          
-          donations?.forEach(d => {
-            const reqs = d.food_requests || []
-            if (reqs.some((r: { status: string }) => r.status === "pending")) requestedCount++
-            if (reqs.some((r: { status: string }) => r.status === "accepted")) acceptedCount++
-          })
+          const rows = donations || []
+          const now = Date.now()
+          const byStatus = rows.map((d) => donationDisplayStatus(d, now))
 
           setStats({
-            total,
-            available: total - requestedCount - acceptedCount,
-            requested: requestedCount,
-            accepted: acceptedCount
+            total: rows.length,
+            available: byStatus.filter((s) => s === "Available").length,
+            requested: byStatus.filter((s) => s === "Requested").length,
+            accepted: byStatus.filter((s) => s === "Accepted").length
           })
           setRecentItems(donations?.slice(0, 5) || [])
           
@@ -85,10 +80,9 @@ export default function DashboardPage() {
           // Fetch ngo stats
           const { data: availableFood } = await supabase
             .from("food_donations")
-            .select("*")
-            // A donation is available if it's not accepted, for MVP we just fetch all
-            // Ideally we check if it has accepted requests
-            
+            .select("status, expiry_time")
+            .eq("status", "Available")
+
           const { data: myRequests } = await supabase
             .from("food_requests")
             .select("*, food_donations(*)")
@@ -99,14 +93,8 @@ export default function DashboardPage() {
           const accepted = myRequests?.filter(r => r.status === "accepted").length || 0
           const pending = myRequests?.filter(r => r.status === "pending").length || 0
 
-          // A simple way to count available: total - anything accepted
-          const { data: acceptedRequests } = await supabase
-            .from("food_requests")
-            .select("food_id")
-            .eq("status", "accepted")
-            
-          const acceptedFoodIds = new Set((acceptedRequests || []).map(r => r.food_id))
-          const trulyAvailable = (availableFood || []).filter(f => !acceptedFoodIds.has(f.id)).length
+          const openNow = Date.now()
+          const trulyAvailable = (availableFood || []).filter((f) => isOpenForRequests(f, openNow)).length
 
           setStats({
             availableFood: trulyAvailable,
@@ -210,11 +198,7 @@ export default function DashboardPage() {
                 const title = isDonor ? item.title : nestedDonation?.title
                 const qty = isDonor ? item.quantity : nestedDonation?.quantity
                 const status = isDonor
-                  ? requestList.some(r => r.status === 'accepted')
-                    ? 'Accepted'
-                    : requestList.some(r => r.status === 'pending')
-                      ? 'Requested'
-                      : 'Available'
+                  ? donationDisplayStatus({ ...item, food_requests: requestList })
                   : item.status
 
                 return (

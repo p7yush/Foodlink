@@ -18,6 +18,14 @@ export function Header() {
     if (pathname === "/donations/new") return "Post Surplus Food"
     if (pathname.startsWith("/donations/")) return "Donation Details"
     if (pathname === "/requests") return profile?.role === "donor" ? "Incoming Requests" : "My Requests"
+    if (pathname === "/matches") return "Match Suggestions"
+    if (pathname === "/recipients") return "Recipient Network"
+    if (pathname === "/volunteers") return "Volunteer Network"
+    if (pathname === "/analytics") return "Impact Analytics"
+    if (pathname === "/volunteer/pickups") return "Available Pickups"
+    if (pathname.startsWith("/volunteer/pickups/")) return "Delivery Run"
+    if (pathname === "/volunteer/history") return "Pickup History"
+    if (pathname === "/volunteer/impact") return "My Impact"
     return "Foodlink"
   }
 

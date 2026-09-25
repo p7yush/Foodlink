@@ -11,7 +11,11 @@ import {
   Inbox,
   User,
   LogOut,
-  Leaf
+  Leaf,
+  Sparkles,
+  Building2,
+  Truck,
+  BarChart3
 } from "lucide-react"
 
 export function Sidebar() {
@@ -32,12 +36,18 @@ export function Sidebar() {
     { name: "My Donations", href: "/donations", icon: PackageSearch },
     { name: "Post Donation", href: "/donations/new", icon: PlusCircle },
     { name: "Incoming Requests", href: "/requests", icon: Inbox },
+    { name: "Match Suggestions", href: "/matches", icon: Sparkles },
+    { name: "Recipients", href: "/recipients", icon: Building2 },
+    { name: "Impact", href: "/analytics", icon: BarChart3 },
   ]
 
   const ngoLinks = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Browse Food", href: "/donations", icon: PackageSearch },
     { name: "My Requests", href: "/requests", icon: Inbox },
+    { name: "Match Suggestions", href: "/matches", icon: Sparkles },
+    { name: "Volunteers", href: "/volunteers", icon: Truck },
+    { name: "Impact", href: "/analytics", icon: BarChart3 },
   ]
 
   const volunteerLinks = [
@@ -45,6 +55,7 @@ export function Sidebar() {
     { name: "Available Pickups", href: "/volunteer/pickups", icon: PackageSearch },
     { name: "Pickup History", href: "/volunteer/history", icon: Inbox },
     { name: "My Impact", href: "/volunteer/impact", icon: Leaf },
+    { name: "Impact", href: "/analytics", icon: BarChart3 },
   ]
 
   const navItems = profile?.role === "donor" ? donorLinks : profile?.role === "volunteer" ? volunteerLinks : ngoLinks
