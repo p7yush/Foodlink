@@ -10,7 +10,7 @@ export async function PATCH(
     if (!authHeader) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
     }
-    const token = authHeader.replace("Bearer ", "")
+    const token = authHeader.replace(/^Bearer\s+/i, "")
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
     
     if (authError || !user) {
@@ -42,18 +42,18 @@ export async function PATCH(
       )
     }
     
-    // Verify user owns the donation
-    const { data: requestInfo } = await supabase
+    const db = createAuthedClient(token)
+
+    // Verify user owns the donation under their row-level security policies.
+    const { data: requestInfo, error: requestInfoError } = await db
       .from("food_requests")
       .select("*, food_donations(donor_id)")
       .eq("id", id)
       .single()
       
-    if (!requestInfo || requestInfo.food_donations?.donor_id !== user.id) {
+    if (requestInfoError || !requestInfo || requestInfo.food_donations?.donor_id !== user.id) {
       return NextResponse.json({ success: false, error: "Unauthorized to update this request" }, { status: 403 })
     }
-
-    const db = createAuthedClient(token)
 
     const { data, error } = await db
       .from("food_requests")
