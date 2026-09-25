@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from "react"
 import { useAuth } from "@/components/providers/AuthProvider"
 import { supabase } from "@/lib/supabase"
 import { Badge } from "@/components/ui/badge"
+import { calculateDistance, estimateTravelTime } from "@/lib/utils"
+import { Clock3, MapPin, PackageCheck, Phone, Truck } from "lucide-react"
 
 type RequestItem = {
   id: string
@@ -16,6 +18,8 @@ type RequestItem = {
     name: string | null
     email: string | null
     role: string | null
+    latitude: number | null
+    longitude: number | null
   } | null
   food_donations: {
     id: string
@@ -25,7 +29,16 @@ type RequestItem = {
     pickup_address: string | null
     status: string | null
     donor_id: string
+    latitude: number | null
+    longitude: number | null
   } | null
+  pickups: {
+    id: string
+    status: string
+    assigned_at: string
+    collected_at: string | null
+    profiles: { name: string | null; phone: string | null } | null
+  }[] | null
 }
 
 export default function RequestsPage() {
@@ -34,11 +47,12 @@ export default function RequestsPage() {
   const [loading, setLoading] = useState(true)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [message, setMessage] = useState("")
+  const [now, setNow] = useState(() => Date.now())
 
-  const loadRequests = useCallback(async () => {
+  const loadRequests = useCallback(async (showLoading = true) => {
     if (!user || !profile) return
     try {
-      setLoading(true)
+      if (showLoading) setLoading(true)
       
       // Fetch all requests along with joined data
       const { data, error } = await supabase
@@ -53,7 +67,9 @@ export default function RequestsPage() {
             id,
             name,
             email,
-            role
+            role,
+            latitude,
+            longitude
           ),
           food_donations (
             id,
@@ -62,7 +78,16 @@ export default function RequestsPage() {
             food_type,
             pickup_address,
             status,
-            donor_id
+            donor_id,
+            latitude,
+            longitude
+          ),
+          pickups (
+            id,
+            status,
+            assigned_at,
+            collected_at,
+            profiles!pickups_volunteer_id_fkey (name, phone)
           )
         `)
         .order("requested_at", { ascending: false })
@@ -79,14 +104,21 @@ export default function RequestsPage() {
     } catch (error) {
       console.error("Error loading requests:", error)
     } finally {
-      setLoading(false)
+      if (showLoading) setLoading(false)
     }
   }, [user, profile])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadRequests()
+    void loadRequests()
+    const refresh = window.setInterval(() => void loadRequests(false), 20_000)
+    return () => window.clearInterval(refresh)
   }, [loadRequests])
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), 60_000)
+    return () => window.clearInterval(interval)
+  }, [])
 
   async function updateRequest(requestId: string, status: "accepted" | "rejected") {
     setUpdatingId(requestId)
@@ -225,6 +257,90 @@ export default function RequestsPage() {
                     </button>
                   </div>
                 )}
+
+                {request.status === "accepted" && (() => {
+                  const pickup = request.pickups?.[0]
+                  const pickupStatus = pickup?.status
+                  const orderId = `FL-${request.id.replace(/-/g, "").slice(0, 8).toUpperCase()}`
+                  const hasCoordinates = request.food_donations?.latitude != null
+                    && request.food_donations.longitude != null
+                    && request.profiles?.latitude != null
+                    && request.profiles.longitude != null
+                  const distanceKm = hasCoordinates
+                    ? calculateDistance(
+                        request.food_donations!.latitude!,
+                        request.food_donations!.longitude!,
+                        request.profiles!.latitude!,
+                        request.profiles!.longitude!
+                      )
+                    : null
+                  const deliveryStarted = pickupStatus === "en_route_to_ngo"
+                  const delivered = pickupStatus === "arrived_at_ngo" || pickupStatus === "completed" || pickupStatus === "delivered"
+                  const totalMinutes = distanceKm == null ? null : estimateTravelTime(distanceKm)
+                  const elapsedMinutes = deliveryStarted && pickup?.collected_at
+                    ? Math.max(0, Math.floor((now - new Date(pickup.collected_at).getTime()) / 60_000))
+                    : 0
+                  const remainingMinutes = delivered ? 0 : totalMinutes == null ? null : Math.max(0, totalMinutes - elapsedMinutes)
+                  const milestones = [
+                    { label: "Volunteer assigned", done: Boolean(pickup) },
+                    { label: "Picked up from donor", done: ["collected", "en_route_to_ngo", "arrived_at_ngo", "completed", "delivered"].includes(pickupStatus || "") },
+                    { label: "Out for delivery", done: ["en_route_to_ngo", "arrived_at_ngo", "completed", "delivered"].includes(pickupStatus || "") },
+                    { label: "Arrived at NGO", done: delivered },
+                  ]
+
+                  return (
+                    <section className="mt-6 rounded-xl border border-primary/20 bg-primary/5 p-5" aria-label={`Order ${orderId} tracking`}>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 font-semibold"><PackageCheck className="h-5 w-5 text-primary" /> Order details</div>
+                        <Badge variant="outline" className="font-mono">{orderId}</Badge>
+                      </div>
+
+                      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <p className="text-sm text-gray-500">Delivery status</p>
+                          <p className="mt-1 flex items-center gap-2 font-medium capitalize">
+                            <Truck className="h-4 w-4 text-primary" />
+                            {pickupStatus ? pickupStatus.replace(/_/g, " ") : "Waiting for a volunteer"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Volunteer</p>
+                          <p className="mt-1 font-medium">{pickup?.profiles?.name || "Not assigned yet"}</p>
+                          {pickup?.profiles?.phone && (
+                            <a className="mt-1 inline-flex items-center gap-1 text-sm text-primary underline" href={`tel:${pickup.profiles.phone}`}>
+                              <Phone className="h-3.5 w-3.5" /> {pickup.profiles.phone}
+                            </a>
+                          )}
+                          {pickup && !pickup.profiles?.phone && <p className="mt-1 text-sm text-muted-foreground">Volunteer phone not provided</p>}
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Donor to NGO distance</p>
+                          <p className="mt-1 flex items-center gap-2 font-medium">
+                            <MapPin className="h-4 w-4 text-primary" />
+                            {distanceKm == null ? "Location unavailable" : `About ${distanceKm.toFixed(1)} km`}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Estimated arrival</p>
+                          <p className="mt-1 flex items-center gap-2 font-medium">
+                            <Clock3 className="h-4 w-4 text-primary" />
+                            {!pickup ? "Available after volunteer assignment" : delivered ? "Arrived" : deliveryStarted && remainingMinutes != null ? remainingMinutes === 0 ? "Arriving now" : `About ${remainingMinutes} min remaining` : "Estimate available when delivery starts"}
+                          </p>
+                          {deliveryStarted && totalMinutes != null && !delivered && <p className="mt-1 text-xs text-muted-foreground">Approximate estimate based on route distance</p>}
+                        </div>
+                      </div>
+
+                      <ol className="mt-5 grid gap-2 border-t pt-4 sm:grid-cols-2">
+                        {milestones.map((milestone) => (
+                          <li key={milestone.label} className={`flex items-center gap-2 text-sm ${milestone.done ? "font-medium text-primary" : "text-muted-foreground"}`}>
+                            <span className={`h-2.5 w-2.5 rounded-full ${milestone.done ? "bg-primary" : "bg-muted-foreground/30"}`} />
+                            {milestone.label}
+                          </li>
+                        ))}
+                      </ol>
+                    </section>
+                  )
+                })()}
               </div>
             ))}
           </div>

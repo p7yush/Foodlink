@@ -1,66 +1,98 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+"use client"
+
+import { FormEvent, useEffect, useState } from "react"
+import { useAuth } from "@/components/providers/AuthProvider"
+import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Settings as SettingsIcon } from "lucide-react"
 
 export default function SettingsPage() {
+  const { user, profile } = useAuth()
+  const [phone, setPhone] = useState("")
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState("")
+
+  useEffect(() => {
+    let active = true
+
+    async function loadProfile() {
+      if (!user) {
+        setLoading(false)
+        return
+      }
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("phone")
+        .eq("id", user.id)
+        .maybeSingle()
+
+      if (!active) return
+      if (error) setMessage("Could not load your contact number.")
+      else setPhone(data?.phone || "")
+      setLoading(false)
+    }
+
+    void loadProfile()
+    return () => { active = false }
+  }, [user])
+
+  async function savePhone(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!user) return
+    setSaving(true)
+    setMessage("")
+    const { error } = await supabase
+      .from("profiles")
+      .update({ phone: phone.trim() || null })
+      .eq("id", user.id)
+
+    setMessage(error ? `Could not save your number: ${error.message}` : "Contact number saved.")
+    setSaving(false)
+  }
+
   return (
-    <div className="flex flex-col gap-6 max-w-4xl mx-auto h-full">
+    <div className="mx-auto flex h-full w-full max-w-4xl flex-col gap-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+        <h2 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
           <SettingsIcon className="h-6 w-6 text-primary" /> Settings
         </h2>
-        <p className="text-muted-foreground mt-1">Manage your organization profile and matching preferences.</p>
+        <p className="mt-1 text-muted-foreground">Manage your delivery contact information.</p>
       </div>
 
-      <div className="grid gap-6">
-        <Card className="shadow-sm border-border/50">
-          <CardHeader>
-            <CardTitle>Organization Profile</CardTitle>
-            <CardDescription>Update your facility details and contact information.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="grid gap-2">
-                <Label htmlFor="orgName">Organization Name</Label>
-                <Input id="orgName" defaultValue="Operations HQ" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="contactEmail">Contact Email</Label>
-                <Input id="contactEmail" type="email" defaultValue="ops@foodlink.org" />
-              </div>
-            </div>
+      <Card className="border-border/50 shadow-sm">
+        <CardHeader>
+          <CardTitle>Contact number</CardTitle>
+          <CardDescription>
+            {profile?.role === "volunteer"
+              ? "Donors and NGOs can use this number to contact you about an active delivery."
+              : "Your number helps coordinate food handoffs."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form className="max-w-md space-y-4" onSubmit={savePhone}>
             <div className="grid gap-2">
-              <Label htmlFor="address">Primary Address</Label>
-              <Input id="address" defaultValue="120 Innovation Way, Suite 400" />
+              <Label htmlFor="phone">Mobile number</Label>
+              <Input
+                id="phone"
+                type="tel"
+                autoComplete="tel"
+                placeholder="Enter your mobile number"
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+                disabled={loading || saving}
+              />
             </div>
-            <Button>Save Changes</Button>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm border-border/50">
-          <CardHeader>
-            <CardTitle>Matching Preferences</CardTitle>
-            <CardDescription>Configure how the AI routes your surplus food.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-2">
-              <Label htmlFor="maxRadius">Maximum Delivery Radius (km)</Label>
-              <Input id="maxRadius" type="number" defaultValue="15" className="sm:max-w-[200px]" />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="priority">Matching Priority</Label>
-              <select id="priority" className="flex h-10 w-full sm:max-w-[300px] rounded-md border border-input bg-background px-3 py-2 text-sm">
-                <option>Distance (Closest first)</option>
-                <option>Urgency (Expiring soonest first)</option>
-                <option>Capacity (Most available first)</option>
-              </select>
-            </div>
-            <Button variant="outline">Update Preferences</Button>
-          </CardContent>
-        </Card>
-      </div>
+            <Button type="submit" disabled={loading || saving}>
+              {saving ? "Saving..." : "Save number"}
+            </Button>
+            {message && <p className="text-sm text-muted-foreground" role="status">{message}</p>}
+          </form>
+        </CardContent>
+      </Card>
     </div>
   )
 }

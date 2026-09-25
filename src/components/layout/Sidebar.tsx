@@ -15,7 +15,8 @@ import {
   Sparkles,
   Building2,
   Truck,
-  BarChart3
+  BarChart3,
+  Settings
 } from "lucide-react"
 
 export function Sidebar() {
@@ -58,7 +59,10 @@ export function Sidebar() {
     { name: "Impact", href: "/analytics", icon: BarChart3 },
   ]
 
-  const navItems = profile?.role === "donor" ? donorLinks : profile?.role === "volunteer" ? volunteerLinks : ngoLinks
+  const navItems = [
+    ...(profile?.role === "donor" ? donorLinks : profile?.role === "volunteer" ? volunteerLinks : ngoLinks),
+    { name: "Settings", href: "/settings", icon: Settings },
+  ]
 
   return (
     <div className="hidden border-r bg-background md:flex w-64 flex-col justify-between">
