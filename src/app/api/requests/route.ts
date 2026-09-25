@@ -7,12 +7,15 @@ export async function POST(request: Request) {
     if (!authHeader) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
     }
-    const token = authHeader.replace("Bearer ", "")
+    const token = authHeader.replace(/^Bearer\s+/i, "")
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
     
     if (authError || !user) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
     }
+
+    // Forward the user's JWT so database queries run under their RLS policies.
+    const authedSupabase = createAuthedClient(token)
 
     const body = await request.json()
 
@@ -30,7 +33,7 @@ export async function POST(request: Request) {
     }
 
     // Check if request already exists
-    const { data: existingRequest } = await supabase
+    const { data: existingRequest } = await authedSupabase
       .from("food_requests")
       .select("id")
       .eq("food_id", food_id)
@@ -47,7 +50,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile, error: profileError } = await authedSupabase
       .from("profiles")
       .select("*")
       .eq("id", ngo_id)
@@ -129,7 +132,7 @@ export async function POST(request: Request) {
 
 export async function GET() {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await authedSupabase
       .from("food_requests")
       .select(`
         id,
