@@ -4,8 +4,9 @@ import { useEffect, useState, useCallback } from "react"
 import { useAuth } from "@/components/providers/AuthProvider"
 import { supabase } from "@/lib/supabase"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { calculateDistance, estimateTravelTime } from "@/lib/utils"
-import { Clock3, MapPin, PackageCheck, Phone, Truck } from "lucide-react"
+import { CheckCircle2, Clock3, MapPin, PackageCheck, Phone, Truck } from "lucide-react"
 
 type RequestItem = {
   id: string
@@ -37,8 +38,20 @@ type RequestItem = {
     status: string
     assigned_at: string
     collected_at: string | null
+    en_route_to_ngo_at: string | null
+    donor_handoff_confirmed_at: string | null
+    recipient_received_at: string | null
     profiles: { name: string | null; phone: string | null } | null
-  }[] | null
+  }[] | {
+    id: string
+    status: string
+    assigned_at: string
+    collected_at: string | null
+    en_route_to_ngo_at: string | null
+    donor_handoff_confirmed_at: string | null
+    recipient_received_at: string | null
+    profiles: { name: string | null; phone: string | null } | null
+  } | null
 }
 
 export default function RequestsPage() {
@@ -48,6 +61,7 @@ export default function RequestsPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [message, setMessage] = useState("")
   const [now, setNow] = useState(() => Date.now())
+  const [confirmingPickupId, setConfirmingPickupId] = useState<string | null>(null)
 
   const loadRequests = useCallback(async (showLoading = true) => {
     if (!user || !profile) return
@@ -87,6 +101,9 @@ export default function RequestsPage() {
             status,
             assigned_at,
             collected_at,
+            en_route_to_ngo_at,
+            donor_handoff_confirmed_at,
+            recipient_received_at,
             profiles!pickups_volunteer_id_fkey (name, phone)
           )
         `)
@@ -154,6 +171,34 @@ export default function RequestsPage() {
       setMessage("Something went wrong. Please try again.")
     } finally {
       setUpdatingId(null)
+    }
+  }
+
+  async function confirmOrderStep(pickupId: string, stage: "donor_pickup" | "ngo_receipt") {
+    setConfirmingPickupId(pickupId)
+    setMessage("")
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const response = await fetch(`/api/pickups/${pickupId}/confirm`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ stage }),
+      })
+      const result = await response.json()
+      if (!response.ok) {
+        setMessage(result.error || "Could not confirm this handoff.")
+        return
+      }
+      setMessage(stage === "donor_pickup" ? "Pickup confirmed. The volunteer can start delivery." : "Receipt confirmed. This order is now complete.")
+      await loadRequests(false)
+    } catch (error) {
+      console.error("Confirm order step error:", error)
+      setMessage("Could not confirm this handoff. Please try again.")
+    } finally {
+      setConfirmingPickupId(null)
     }
   }
 
@@ -258,8 +303,8 @@ export default function RequestsPage() {
                   </div>
                 )}
 
-                {request.status === "accepted" && (() => {
-                  const pickup = request.pickups?.[0]
+                {(request.status === "accepted" || request.status === "completed") && (() => {
+                  const pickup = Array.isArray(request.pickups) ? request.pickups[0] : request.pickups
                   const pickupStatus = pickup?.status
                   const orderId = `FL-${request.id.replace(/-/g, "").slice(0, 8).toUpperCase()}`
                   const hasCoordinates = request.food_donations?.latitude != null
@@ -276,16 +321,20 @@ export default function RequestsPage() {
                     : null
                   const deliveryStarted = pickupStatus === "en_route_to_ngo"
                   const delivered = pickupStatus === "arrived_at_ngo" || pickupStatus === "completed" || pickupStatus === "delivered"
+                  const handoffVerified = Boolean(pickup?.donor_handoff_confirmed_at)
+                  const receiptVerified = Boolean(pickup?.recipient_received_at)
                   const totalMinutes = distanceKm == null ? null : estimateTravelTime(distanceKm)
-                  const elapsedMinutes = deliveryStarted && pickup?.collected_at
-                    ? Math.max(0, Math.floor((now - new Date(pickup.collected_at).getTime()) / 60_000))
+                  const elapsedMinutes = deliveryStarted && pickup?.en_route_to_ngo_at
+                    ? Math.max(0, Math.floor((now - new Date(pickup.en_route_to_ngo_at).getTime()) / 60_000))
                     : 0
                   const remainingMinutes = delivered ? 0 : totalMinutes == null ? null : Math.max(0, totalMinutes - elapsedMinutes)
                   const milestones = [
                     { label: "Volunteer assigned", done: Boolean(pickup) },
                     { label: "Picked up from donor", done: ["collected", "en_route_to_ngo", "arrived_at_ngo", "completed", "delivered"].includes(pickupStatus || "") },
+                    { label: "Donor confirmed handoff", done: handoffVerified },
                     { label: "Out for delivery", done: ["en_route_to_ngo", "arrived_at_ngo", "completed", "delivered"].includes(pickupStatus || "") },
                     { label: "Arrived at NGO", done: delivered },
+                    { label: "NGO confirmed receipt", done: receiptVerified },
                   ]
 
                   return (
@@ -338,6 +387,29 @@ export default function RequestsPage() {
                           </li>
                         ))}
                       </ol>
+
+                      {pickup && isDonor && pickupStatus === "collected" && !handoffVerified && (
+                        <div className="mt-4 rounded-lg border bg-background p-4">
+                          <p className="text-sm">Confirm that the volunteer has the food before they leave for delivery.</p>
+                          <Button className="mt-3" disabled={confirmingPickupId === pickup.id} onClick={() => void confirmOrderStep(pickup.id, "donor_pickup")}>
+                            {confirmingPickupId === pickup.id ? "Confirming..." : "Confirm food handoff"}
+                          </Button>
+                        </div>
+                      )}
+                      {pickup && isDonor && handoffVerified && (
+                        <p className="mt-4 flex items-center gap-2 text-sm font-medium text-emerald-700"><CheckCircle2 className="h-4 w-4" /> You confirmed the food handoff.</p>
+                      )}
+                      {pickup && !isDonor && pickupStatus === "arrived_at_ngo" && !receiptVerified && (
+                        <div className="mt-4 rounded-lg border bg-background p-4">
+                          <p className="text-sm">Check the order and confirm that your NGO received it from the volunteer.</p>
+                          <Button className="mt-3" disabled={confirmingPickupId === pickup.id} onClick={() => void confirmOrderStep(pickup.id, "ngo_receipt")}>
+                            {confirmingPickupId === pickup.id ? "Confirming..." : "Confirm receipt"}
+                          </Button>
+                        </div>
+                      )}
+                      {pickup && !isDonor && receiptVerified && (
+                        <p className="mt-4 flex items-center gap-2 text-sm font-medium text-emerald-700"><CheckCircle2 className="h-4 w-4" /> Your NGO confirmed receipt of the food.</p>
+                      )}
                     </section>
                   )
                 })()}

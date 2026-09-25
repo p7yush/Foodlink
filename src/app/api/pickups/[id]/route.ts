@@ -10,7 +10,7 @@ export async function PATCH(
     if (!authHeader) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
     }
-    const token = authHeader.replace("Bearer ", "")
+    const token = authHeader.replace(/^Bearer\s+/i, "")
     const { data: { user }, error: authError } = await defaultSupabase.auth.getUser(token)
     
     if (authError || !user) {
@@ -31,7 +31,7 @@ export async function PATCH(
     // Verify user owns the pickup
     const { data: pickupInfo, error: pickupError } = await supabase
       .from("pickups")
-      .select("volunteer_id, request_id")
+      .select("volunteer_id, request_id, donor_handoff_confirmed_at")
       .eq("id", id)
       .single()
       
@@ -39,17 +39,20 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: "Unauthorized to update this pickup" }, { status: 403 })
     }
 
+    if (status === "en_route_to_ngo" && !pickupInfo.donor_handoff_confirmed_at) {
+      return NextResponse.json({ success: false, error: "Waiting for the donor to confirm the food handoff." }, { status: 409 })
+    }
+
+    if (status === "delivered" || status === "completed") {
+      return NextResponse.json({ success: false, error: "The NGO must confirm receipt before this order can be completed." }, { status: 409 })
+    }
+
     // Determine timestamp field based on status
     const updateData: Record<string, string> = { status }
     if (status === "arrived_at_donor") updateData.arrived_at_donor_at = new Date().toISOString()
     if (status === "collected") updateData.collected_at = new Date().toISOString()
+    if (status === "en_route_to_ngo") updateData.en_route_to_ngo_at = new Date().toISOString()
     if (status === "arrived_at_ngo") updateData.arrived_at_ngo_at = new Date().toISOString()
-    if (status === "delivered" || status === "completed") {
-      updateData.delivered_at = new Date().toISOString()
-      updateData.completed_at = new Date().toISOString()
-      updateData.status = "completed"
-    }
-
     const { data, error } = await supabase
       .from("pickups")
       .update(updateData)

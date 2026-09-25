@@ -61,6 +61,8 @@ npm install
 
 Create a Supabase project, then run the contents of `supabase/schema.sql` in the SQL editor. It is safe to run more than once.
 
+For an existing Supabase project, also run `supabase/order-handoff-verification.sql` once in the SQL editor. It adds donor pickup and NGO receipt confirmations used by order tracking.
+
 To fill an empty database with a worked example, sign up the six accounts listed at the top of [`supabase/seed.sql`](supabase/seed.sql), then run that file. It seeds a network that covers every stage of the rescue flow — food still available, a request awaiting the donor's decision, a run waiting for a volunteer, a delivery in progress and one completed delivery so the impact figures are not zero. It is also safe to run more than once.
 
 Copy the environment template and fill in your project's URL and anon key:

@@ -21,6 +21,8 @@ type DestinationProfile = {
 type PickupDetailRow = {
   id: string
   status: string
+  donor_handoff_confirmed_at: string | null
+  recipient_received_at: string | null
   food_requests: {
     profiles?: DestinationProfile
     food_donations: {
@@ -62,7 +64,9 @@ export default function PickupDetail() {
         setLoading(false)
       }
     }
-    fetchPickup()
+    void fetchPickup()
+    const refresh = window.setInterval(() => void fetchPickup(), 15_000)
+    return () => window.clearInterval(refresh)
   }, [user, id])
 
   async function updateStatus(newStatus: string) {
@@ -176,10 +180,16 @@ export default function PickupDetail() {
               </Button>
             )}
 
-            {pickup.status === 'collected' && (
+            {pickup.status === 'collected' && pickup.donor_handoff_confirmed_at && (
               <Button disabled={updating} onClick={() => updateStatus('en_route_to_ngo')} className="w-full py-6 text-lg rounded-xl shadow-md">
                 Start Route to NGO
               </Button>
+            )}
+
+            {pickup.status === 'collected' && !pickup.donor_handoff_confirmed_at && (
+              <div className="w-full rounded-xl bg-muted p-4 text-center text-sm text-muted-foreground">
+                Waiting for the donor to confirm the food handoff before you leave.
+              </div>
             )}
 
             {pickup.status === 'en_route_to_ngo' && (
@@ -189,9 +199,9 @@ export default function PickupDetail() {
             )}
 
             {pickup.status === 'arrived_at_ngo' && (
-              <Button disabled={updating} onClick={() => updateStatus('completed')} className="w-full py-6 text-lg rounded-xl shadow-md bg-emerald-600 hover:bg-emerald-700">
-                Confirm Delivery Complete
-              </Button>
+              <div className="w-full rounded-xl bg-muted p-4 text-center text-sm text-muted-foreground">
+                You marked arrival. The NGO must confirm they received the food to complete this order.
+              </div>
             )}
 
             {pickup.status === 'completed' && (

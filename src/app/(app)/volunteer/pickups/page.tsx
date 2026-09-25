@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/providers/AuthProvider"
 import { supabase } from "@/lib/supabase"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
@@ -31,10 +32,11 @@ type AvailableRequest = {
     profiles?: { name: string } | null
   } | null
   profiles?: DestinationProfile
-  pickups?: { id: string }[] | null
+  pickups?: { id: string }[] | { id: string } | null
 }
 
 export default function AvailablePickups() {
+  const router = useRouter()
   const { user, profile } = useAuth()
   const [loading, setLoading] = useState(true)
   const [pickups, setPickups] = useState<AvailableRequest[]>([])
@@ -62,7 +64,12 @@ export default function AvailablePickups() {
           // Filter out requests that already have an assigned pickup
           const rows = data as unknown as AvailableRequest[]
           setFetchedAt(Date.now())
-          setPickups(rows.filter(request => !request.pickups || request.pickups.length === 0))
+          setPickups(rows.filter((request) => {
+            const assignedPickups = Array.isArray(request.pickups)
+              ? request.pickups
+              : request.pickups ? [request.pickups] : []
+            return assignedPickups.length === 0
+          }))
         }
       } catch (err) {
         console.error("Error fetching pickups:", err)
@@ -87,12 +94,12 @@ export default function AvailablePickups() {
         body: JSON.stringify({ request_id: requestId }),
       })
 
-      if (response.ok) {
+      const result = await response.json()
+      if (response.ok && result.success) {
         setPickups(prev => prev.filter(p => p.id !== requestId))
-        alert("Pickup accepted successfully! Go to Active Delivery.")
+        router.push(`/volunteer/pickups/${result.pickup.id}`)
       } else {
-        const err = await response.json()
-        alert(err.error || "Failed to accept pickup")
+        alert(result.error || "Failed to accept pickup")
       }
     } catch (err) {
       console.error(err)

@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Settings as SettingsIcon } from "lucide-react"
 
 export default function SettingsPage() {
-  const { user, profile } = useAuth()
+  const { user, profile, loading: authLoading } = useAuth()
   const [phone, setPhone] = useState("")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -20,7 +20,8 @@ export default function SettingsPage() {
     let active = true
 
     async function loadProfile() {
-      if (!user) {
+      if (authLoading) return
+      if (!user || profile?.role !== "volunteer") {
         setLoading(false)
         return
       }
@@ -38,7 +39,7 @@ export default function SettingsPage() {
 
     void loadProfile()
     return () => { active = false }
-  }, [user])
+  }, [user, profile?.role, authLoading])
 
   async function savePhone(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -52,6 +53,11 @@ export default function SettingsPage() {
 
     setMessage(error ? `Could not save your number: ${error.message}` : "Contact number saved.")
     setSaving(false)
+  }
+
+  if (authLoading) return <div className="p-8">Loading profile...</div>
+  if (profile?.role !== "volunteer") {
+    return <div className="p-8">Contact number settings are available to volunteer accounts.</div>
   }
 
   return (

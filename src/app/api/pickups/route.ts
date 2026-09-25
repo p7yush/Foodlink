@@ -7,7 +7,7 @@ export async function POST(request: Request) {
     if (!authHeader) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
     }
-    const token = authHeader.replace("Bearer ", "")
+    const token = authHeader.replace(/^Bearer\s+/i, "")
     const { data: { user }, error: authError } = await defaultSupabase.auth.getUser(token)
     
     if (authError || !user) {
@@ -37,13 +37,21 @@ export async function POST(request: Request) {
     }
 
     // Check if pickup already exists for this request
-    const { data: existingPickup } = await supabase
+    const { data: existingPickup, error: existingPickupError } = await supabase
       .from("pickups")
-      .select("id")
+      .select("id, request_id, volunteer_id, status, assigned_at")
       .eq("request_id", request_id)
       .maybeSingle()
 
+    if (existingPickupError) {
+      console.error("LOOKUP PICKUP ERROR:", existingPickupError)
+      return NextResponse.json({ success: false, error: existingPickupError.message }, { status: 500 })
+    }
+
     if (existingPickup) {
+      if (existingPickup.volunteer_id === volunteer_id) {
+        return NextResponse.json({ success: true, pickup: existingPickup, alreadyAssigned: true })
+      }
       return NextResponse.json({ success: false, error: "This pickup has already been claimed by another volunteer." }, { status: 409 })
     }
 
@@ -60,6 +68,20 @@ export async function POST(request: Request) {
 
     if (error) {
       console.error("INSERT PICKUP ERROR:", error)
+      if (error.code === "23505") {
+        const { data: racedPickup } = await supabase
+          .from("pickups")
+          .select("id, request_id, volunteer_id, status, assigned_at")
+          .eq("request_id", request_id)
+          .maybeSingle()
+        if (racedPickup?.volunteer_id === volunteer_id) {
+          return NextResponse.json({ success: true, pickup: racedPickup, alreadyAssigned: true })
+        }
+        return NextResponse.json({
+          success: false,
+          error: "Another volunteer just accepted this pickup. Refresh the page to see its status.",
+        }, { status: 409 })
+      }
       return NextResponse.json({ success: false, error: error.message }, { status: 500 })
     }
 
