@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+import { useAuth } from "@/components/providers/AuthProvider"
 
 type Donation = {
   id: string
@@ -19,6 +20,7 @@ type Donation = {
 export default function DonationDetailsPage() {
   const params = useParams()
   const id = params.id as string
+  const { profile } = useAuth()
 
   const [donation, setDonation] = useState<Donation | null>(null)
   const [loading, setLoading] = useState(true)
@@ -208,21 +210,23 @@ export default function DonationDetailsPage() {
             </div>
           </div>
 
-          <div className="mt-8 border-t pt-6">
-            <button
-              onClick={handleRequestFood}
-              disabled={requesting}
-              className="w-full rounded-lg bg-black px-4 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {requesting ? "Requesting..." : "Request Food"}
-            </button>
+          {profile?.role === "ngo" && (
+            <div className="mt-8 border-t pt-6">
+              <button
+                onClick={handleRequestFood}
+                disabled={requesting}
+                className="w-full rounded-lg bg-black px-4 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {requesting ? "Requesting..." : "Request Food"}
+              </button>
 
-            {message && (
-              <p className="mt-4 rounded-lg bg-gray-100 p-3 text-sm">
-                {message}
-              </p>
-            )}
-          </div>
+              {message && (
+                <p className="mt-4 rounded-lg bg-gray-100 p-3 text-sm">
+                  {message}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </main>
