@@ -88,7 +88,8 @@ export default function PickupDetail() {
         const result = await res.json()
         setPickup(prev => (prev ? { ...prev, status: result.pickup.status } : prev))
       } else {
-        alert("Failed to update status")
+        const errorData = await res.json()
+        alert(errorData.error || "Failed to update status")
       }
     } catch (err) {
       console.error(err)

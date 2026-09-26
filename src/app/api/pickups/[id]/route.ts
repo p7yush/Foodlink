@@ -34,9 +34,15 @@ export async function PATCH(
       .select("volunteer_id, request_id, donor_handoff_confirmed_at")
       .eq("id", id)
       .single()
-      
-    if (pickupError || !pickupInfo || pickupInfo.volunteer_id !== user.id) {
-      return NextResponse.json({ success: false, error: "Unauthorized to update this pickup" }, { status: 403 })
+
+    if (pickupError) {
+      return NextResponse.json({ success: false, error: pickupError.message }, { status: 500 })
+    }
+    if (!pickupInfo) {
+      return NextResponse.json({ success: false, error: "Pickup not found" }, { status: 404 })
+    }
+    if (pickupInfo.volunteer_id !== user.id) {
+      return NextResponse.json({ success: false, error: "This pickup is not assigned to you" }, { status: 403 })
     }
 
     if (status === "en_route_to_ngo" && !pickupInfo.donor_handoff_confirmed_at) {
@@ -73,6 +79,7 @@ export async function PATCH(
     })
   } catch (err) {
     console.error(err)
-    return NextResponse.json({ success: false, error: "Server Error" }, { status: 500 })
+    const errorMessage = err instanceof Error ? err.message : "Server Error"
+    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 })
   }
 }
