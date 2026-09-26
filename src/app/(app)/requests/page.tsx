@@ -8,6 +8,18 @@ import { Button } from "@/components/ui/button"
 import { calculateDistance, estimateTravelTime } from "@/lib/utils"
 import { CheckCircle2, Clock3, MapPin, PackageCheck, Phone, Truck } from "lucide-react"
 
+type PickupInfo = {
+  id: string
+  request_id: string
+  status: string
+  assigned_at: string
+  collected_at: string | null
+  en_route_to_ngo_at: string | null
+  donor_handoff_confirmed_at: string | null
+  recipient_received_at: string | null
+  profiles: { name: string | null; phone: string | null } | null
+}
+
 type RequestItem = {
   id: string
   food_id: string
@@ -33,25 +45,14 @@ type RequestItem = {
     latitude: number | null
     longitude: number | null
   } | null
-  pickups: {
-    id: string
-    status: string
-    assigned_at: string
-    collected_at: string | null
-    en_route_to_ngo_at: string | null
-    donor_handoff_confirmed_at: string | null
-    recipient_received_at: string | null
-    profiles: { name: string | null; phone: string | null } | null
-  }[] | {
-    id: string
-    status: string
-    assigned_at: string
-    collected_at: string | null
-    en_route_to_ngo_at: string | null
-    donor_handoff_confirmed_at: string | null
-    recipient_received_at: string | null
-    profiles: { name: string | null; phone: string | null } | null
-  } | null
+  pickups?: PickupInfo[] | PickupInfo | null
+}
+
+function errorMessage(error: unknown): string {
+  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
+    return error.message
+  }
+  return "Could not load requests."
 }
 
 export default function RequestsPage() {
@@ -70,7 +71,7 @@ export default function RequestsPage() {
       if (showLoading) setLoading(true)
       setLoadError("")
       
-      // Fetch all requests along with joined data
+      // Load requests independently so an optional tracking join cannot hide them.
       const { data, error } = await supabase
         .from("food_requests")
         .select(`
@@ -97,9 +98,20 @@ export default function RequestsPage() {
             donor_id,
             latitude,
             longitude
-          ),
-          pickups (
+          )
+        `)
+        .order("requested_at", { ascending: false })
+
+      if (error) throw error
+
+      const rows = (data || []) as unknown as RequestItem[]
+      let rowsWithPickups = rows
+      if (rows.length > 0) {
+        const { data: pickupRows, error: pickupError } = await supabase
+          .from("pickups")
+          .select(`
             id,
+            request_id,
             status,
             assigned_at,
             collected_at,
@@ -107,22 +119,34 @@ export default function RequestsPage() {
             donor_handoff_confirmed_at,
             recipient_received_at,
             profiles!pickups_volunteer_id_fkey (name, phone)
-          )
-        `)
-        .order("requested_at", { ascending: false })
+          `)
+          .in("request_id", rows.map((row) => row.id))
 
-      if (error) throw error
+        if (pickupError) {
+          console.error("Error loading pickup tracking:", pickupError)
+          setLoadError(`Requests loaded, but delivery details could not be loaded: ${errorMessage(pickupError)}`)
+        } else {
+          const pickupByRequest = new Map<string, PickupInfo>()
+          for (const pickup of (pickupRows || []) as unknown as PickupInfo[]) {
+            pickupByRequest.set(pickup.request_id, pickup)
+          }
+          rowsWithPickups = rows.map((row) => ({
+            ...row,
+            pickups: pickupByRequest.get(row.id) || null,
+          }))
+        }
+      }
 
       if (profile.role === "donor") {
         // Filter requests for food owned by this donor
-        setRequests((data as unknown as RequestItem[]).filter(r => r.food_donations?.donor_id === user.id))
+        setRequests(rowsWithPickups.filter(r => r.food_donations?.donor_id === user.id))
       } else {
         // Filter requests made by this NGO
-        setRequests((data as unknown as RequestItem[]).filter(r => r.ngo_id === user.id))
+        setRequests(rowsWithPickups.filter(r => r.ngo_id === user.id))
       }
     } catch (error) {
       console.error("Error loading requests:", error)
-      setLoadError(error instanceof Error ? error.message : "Could not load requests.")
+      setLoadError(errorMessage(error))
     } finally {
       if (showLoading) setLoading(false)
     }
