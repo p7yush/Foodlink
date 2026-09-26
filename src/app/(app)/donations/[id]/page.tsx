@@ -1,39 +1,43 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useParams } from "next/navigation"
-import { supabase } from "@/lib/supabase"
-import { useAuth } from "@/components/providers/AuthProvider"
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/providers/AuthProvider";
 
 type Donation = {
-  id: string
-  title: string
-  description: string | null
-  quantity: number
-  food_type: string | null
-  expiry_time: string | null
-  pickup_address: string | null
-  status: string | null
-  created_at: string
-}
+  id: string;
+  title: string;
+  description: string | null;
+  quantity: number;
+  food_type: string | null;
+  expiry_time: string | null;
+  pickup_address: string | null;
+  status: string | null;
+  created_at: string;
+  donor_id: string;
+};
 
 export default function DonationDetailsPage() {
-  const params = useParams()
-  const id = params.id as string
-  const { profile } = useAuth()
+  const params = useParams();
+  const id = params.id as string;
+  const { profile } = useAuth();
+  const router = useRouter();
 
-  const [donation, setDonation] = useState<Donation | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [requesting, setRequesting] = useState(false)
-  const [message, setMessage] = useState("")
-  const [loadError, setLoadError] = useState("")
+  const [donation, setDonation] = useState<Donation | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [requesting, setRequesting] = useState(false);
+  const [message, setMessage] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState("");
 
   useEffect(() => {
     async function loadDonation() {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
+        const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
-          setLoadError("Please log in to view this donation.")
+          setLoadError("Please log in to view this donation.");
           return
         }
 
@@ -101,6 +105,44 @@ export default function DonationDetailsPage() {
     }
   }
 
+  async function handleCancelDonation() {
+    setCancelling(true)
+    setCancelError("")
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        setCancelError("Please log in to cancel this donation.")
+        return
+      }
+
+      const response = await fetch(`/api/donations/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ status: "Cancelled" }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        setCancelError(result.error || "Failed to cancel donation.")
+        return
+      }
+
+      alert("Donation cancelled successfully!")
+      // Redirect to donations list
+      router.push("/donations")
+    } catch (error) {
+      console.error("Cancel donation error:", error)
+      setCancelError("Something went wrong. Please try again.")
+    } finally {
+      setCancelling(false)
+    }
+  }
+
   if (loading) {
     return (
       <main className="p-8">
@@ -120,6 +162,8 @@ export default function DonationDetailsPage() {
     )
   }
 
+  const isDonor = profile?.role === "donor" && donation.donor_id === profile?.id
+
   return (
     <main className="p-8">
       <div className="mx-auto max-w-3xl">
@@ -128,7 +172,7 @@ export default function DonationDetailsPage() {
 
           <h1 className="text-3xl font-bold">{donation.title}</h1>
 
-          <p className="mt-2 text-sm text-gray-500">
+          <p className="mt-2 text-sm text-gray-600">
             {donation.id}
           </p>
         </div>
@@ -223,6 +267,24 @@ export default function DonationDetailsPage() {
               {message && (
                 <p className="mt-4 rounded-lg bg-gray-100 p-3 text-sm">
                   {message}
+                </p>
+              )}
+            </div>
+          )}
+
+          {isDonor && donation.status === "Available" && (
+            <div className="mt-8 border-t pt-6">
+              <button
+                onClick={handleCancelDonation}
+                disabled={cancelling}
+                className="w-full rounded-lg bg-red-500 px-4 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {cancelling ? "Cancelling..." : "Cancel Donation"}
+              </button>
+
+              {cancelError && (
+                <p className="mt-4 rounded-lg bg-red-50 text-red-700 p-3 text-sm">
+                  {cancelError}
                 </p>
               )}
             </div>
