@@ -214,6 +214,11 @@ const updateRoute = useCallback(async () => {
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || typeof window === 'undefined' || !mapReady) return;
+    console.log('FOODLINK-MAP-PROPS', {
+      volunteerLocation,
+      donorLocation,
+      ngoLocation,
+    });
 
     // Remove existing markers
     markersRef.current.forEach((marker) => {
