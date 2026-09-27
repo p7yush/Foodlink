@@ -72,6 +72,27 @@ const updateRoute = useCallback(async () => {
       }
     }
 
+    // Handle case where start and end coordinates are identical (or very close)
+    if (waypoints.length === 2) {
+      const [start, end] = waypoints;
+      // Check if coordinates are identical or very close (within 1 meter)
+      const [startLng, startLat] = start;
+      const [endLng, endLat] = end;
+      const isIdentical = Math.abs(startLng - endLng) < 0.00001 && Math.abs(startLat - endLat) < 0.00001;
+      if (isIdentical) {
+        // Remove existing route if coordinates are identical
+        if (map !== null) {
+          if (map.getLayer(routeLayerId)) {
+            map.removeLayer(routeLayerId);
+          }
+          if (map.getSource(routeSourceId)) {
+            map.removeSource(routeSourceId);
+          }
+        }
+        return;
+      }
+    }
+
     if (!map || waypoints.length < 2 || !process.env.NEXT_PUBLIC_MAPBOX_TOKEN) {
       return;
     }
@@ -195,16 +216,16 @@ const updateRoute = useCallback(async () => {
         }
       });
 
-      if (map.getLayer(routeLayerId)) {
-        map.removeLayer(routeLayerId);
-      }
+      if (map !== null) {
+        if (map.getLayer(routeLayerId)) {
+          map.removeLayer(routeLayerId);
+        }
 
-      if (map.getSource(routeSourceId)) {
-        map.removeSource(routeSourceId);
-      }
+        if (map.getSource(routeSourceId)) {
+          map.removeSource(routeSourceId);
+        }
 
-      // Remove map
-      if (map) {
+        // Remove map
         map.remove();
       }
     };
@@ -214,11 +235,6 @@ const updateRoute = useCallback(async () => {
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || typeof window === 'undefined' || !mapReady) return;
-    console.log('FOODLINK-MAP-PROPS', {
-      volunteerLocation,
-      donorLocation,
-      ngoLocation,
-    });
 
     // Remove existing markers
     markersRef.current.forEach((marker) => {
@@ -240,7 +256,31 @@ const updateRoute = useCallback(async () => {
     // Create markers for each location
     locations.forEach((loc, index) => {
       if (loc.latitude !== null && loc.longitude !== null) {
-        const lngLat: LngLatLike = [loc.longitude, loc.latitude];
+        let lngLat: LngLatLike = [loc.longitude, loc.latitude];
+
+        // Check if this location has the same coordinates as any previous valid location
+        // If so, offset it slightly to make both markers visible
+        const isDuplicate = validLocations.some(existingLatLng => {
+          // Handle LngLatLike as either [number, number] or {lat: number, lng: number}
+          const existingLng = Array.isArray(existingLatLng)
+            ? existingLatLng[0]
+            : ('lng' in existingLatLng ? (existingLatLng as {lng: number}).lng : 0);
+          const existingLat = Array.isArray(existingLatLng)
+            ? existingLatLng[1]
+            : ('lat' in existingLatLng ? (existingLatLng as {lat: number}).lat : 0);
+          return existingLng === loc.longitude && existingLat === loc.latitude;
+        });
+
+        if (isDuplicate) {
+          // Offset by approximately 5-10 meters in a circular pattern
+          const offset = 0.0001; // Roughly 10 meters at equator
+          const angle = (validLocations.length * Math.PI * 2) / 3; // Spread duplicates evenly
+          lngLat = [
+            loc.longitude + offset * Math.cos(angle),
+            loc.latitude + offset * Math.sin(angle)
+          ];
+        }
+
         validLocations.push(lngLat);
 
         // Create marker element
@@ -270,7 +310,9 @@ const updateRoute = useCallback(async () => {
     // Fit bounds to show all locations
     if (validLocations.length > 0) {
       const bounds = new LngLatBounds();
-      validLocations.forEach((lngLat) => bounds.extend(lngLat));
+      validLocations.forEach((lngLat) => {
+        bounds.extend(lngLat);
+      });
 
       // Add some padding
       map.fitBounds(bounds, {

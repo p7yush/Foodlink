@@ -67,18 +67,7 @@ export default function PickupDetail() {
 
         if (error) throw error
 
-        // DEBUG: Log the food_requests.food_donations object to inspect its structure
-        if (data?.food_requests?.food_donations) {
-          console.log('FOODLINK-DONOR-DIAGNOSTIC food_donations object:', data.food_requests.food_donations);
-          console.log('FOODLINK-DONOR-DIAGNOSTIC donation latitude:', data.food_requests.food_donations.latitude);
-          console.log('FOODLINK-DONOR-DIAGNOSTIC donation longitude:', data.food_requests.food_donations.longitude);
-          console.log('FOODLINK-DONOR-DIAGNOSTIC donation profiles:', data.food_requests.food_donations.profiles);
-          if (data.food_requests.food_donations.profiles) {
-            console.log('FOODLINK-DONOR-DIAGNOSTIC donor profile latitude:', data.food_requests.food_donations.profiles.latitude);
-            console.log('FOODLINK-DONOR-DIAGNOSTIC donor profile longitude:', data.food_requests.food_donations.profiles.longitude);
-          }
-        }
-
+        
         setPickup(data as unknown as PickupDetailRow)
       } catch (err) {
         console.error(err)
