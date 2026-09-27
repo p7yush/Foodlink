@@ -60,7 +60,7 @@ export default function PickupDetail() {
         const { data, error } = await supabase
           .from("pickups")
           .select(
-            "*, food_requests(*, food_donations(*, profiles!food_donations_donor_id_fkey(name)), profiles!food_requests_ngo_id_fkey(name, address, latitude, longitude))"
+            "*, food_requests(*, food_donations(*, profiles!food_donations_donor_id_fkey(name, latitude, longitude)), profiles!food_requests_ngo_id_fkey(name, address, latitude, longitude))"
           )
           .eq("id", id)
           .single()
