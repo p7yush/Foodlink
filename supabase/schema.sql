@@ -63,8 +63,11 @@ create table if not exists public.pickups (
   collected_at        timestamptz,
   arrived_at_ngo_at   timestamptz,
   delivered_at        timestamptz,
-  completed_at        timestamptz
-);
+  completed_at        timestamptz,
+    volunteer_latitude double precision,
+    volunteer_longitude double precision,
+    volunteer_location_updated_at timestamptz
+  );
 
 create index if not exists food_donations_donor_idx    on public.food_donations (donor_id);
 create index if not exists food_donations_created_idx  on public.food_donations (created_at desc);
@@ -249,6 +252,9 @@ begin
        set donor_handoff_confirmed_at = coalesce(donor_handoff_confirmed_at, now())
      where id = p_pickup_id
      returning * into v_pickup;
+    IF v_pickup IS NULL THEN
+      RAISE EXCEPTION 'Pickup not found or could not be confirmed.';
+    END IF;
   elsif p_stage = 'ngo_receipt' then
     if auth.uid() <> v_ngo_id then
       raise exception 'Only the requested NGO can confirm delivery.';
@@ -263,6 +269,9 @@ begin
            status = 'completed'
      where id = p_pickup_id
      returning * into v_pickup;
+    IF v_pickup IS NULL THEN
+      RAISE EXCEPTION 'Pickup not found or could not be confirmed.';
+    END IF;
   else
     raise exception 'Unknown handoff confirmation stage.';
   end if;
@@ -302,3 +311,4 @@ $$;
 
 revoke all on function public.impact_stats() from public;
 grant execute on function public.impact_stats() to anon, authenticated;
+

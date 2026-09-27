@@ -2,7 +2,10 @@
 alter table public.pickups
   add column if not exists en_route_to_ngo_at timestamptz,
   add column if not exists donor_handoff_confirmed_at timestamptz,
-  add column if not exists recipient_received_at timestamptz;
+  add column if not exists recipient_received_at timestamptz,
+    add column if not exists volunteer_latitude double precision,
+    add column if not exists volunteer_longitude double precision,
+    add column if not exists volunteer_location_updated_at timestamptz;
 
 -- Order tracking must be able to see an assigned pickup after a volunteer claims it.
 drop policy if exists pickups_read on public.pickups;
@@ -54,6 +57,9 @@ begin
        set donor_handoff_confirmed_at = coalesce(donor_handoff_confirmed_at, now())
      where id = p_pickup_id
      returning * into v_pickup;
+    IF v_pickup IS NULL THEN
+      RAISE EXCEPTION 'Pickup not found or could not be confirmed.';
+    END IF;
   elsif p_stage = 'ngo_receipt' then
     if auth.uid() <> v_ngo_id then
       raise exception 'Only the requested NGO can confirm delivery.';
@@ -68,6 +74,9 @@ begin
            status = 'completed'
      where id = p_pickup_id
      returning * into v_pickup;
+    IF v_pickup IS NULL THEN
+      RAISE EXCEPTION 'Pickup not found or could not be confirmed.';
+    END IF;
   else
     raise exception 'Unknown handoff confirmation stage.';
   end if;
@@ -78,3 +87,4 @@ $$;
 
 revoke all on function public.confirm_order_handoff(uuid, text) from public;
 grant execute on function public.confirm_order_handoff(uuid, text) to authenticated;
+

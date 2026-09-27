@@ -1,6 +1,6 @@
-"use client"
+﻿"use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useParams } from "next/navigation"
 import { useAuth } from "@/components/providers/AuthProvider"
 import { supabase } from "@/lib/supabase"
@@ -69,6 +69,82 @@ export default function PickupDetail() {
     return () => window.clearInterval(refresh)
   }, [user, id])
 
+  const locationWatchRef = useRef<number | null>(null)
+  const lastLocationSentAtRef = useRef(0)
+
+  useEffect(() => {
+    if (!pickup || !id || typeof navigator === "undefined" || !navigator.geolocation) {
+      return
+    }
+
+    const activeStatuses = [
+      "en_route_to_donor",
+      "collected",
+      "en_route_to_ngo",
+    ]
+
+    if (!activeStatuses.includes(pickup.status)) {
+      if (locationWatchRef.current !== null) {
+        navigator.geolocation.clearWatch(locationWatchRef.current)
+        locationWatchRef.current = null
+      }
+      return
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
+      async (position) => {
+        const now = Date.now()
+
+        if (now - lastLocationSentAtRef.current < 5000) {
+          return
+        }
+
+        lastLocationSentAtRef.current = now
+
+        try {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession()
+
+          if (!session?.access_token) {
+            return
+          }
+
+          await fetch(`/api/pickups/${id}/location`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            }),
+          })
+        } catch (error) {
+          console.warn("Could not send volunteer location:", error)
+        }
+      },
+      (error) => {
+        console.warn("Volunteer location error:", error)
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 10000,
+      }
+    )
+
+    locationWatchRef.current = watchId
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId)
+
+      if (locationWatchRef.current === watchId) {
+        locationWatchRef.current = null
+      }
+    }
+  }, [pickup, id])
   async function updateStatus(newStatus: string) {
     if (!user) return
     setUpdating(true)
@@ -111,7 +187,7 @@ export default function PickupDetail() {
   return (
     <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/dashboard" className="text-muted-foreground hover:text-foreground">← Back</Link>
+        <Link href="/dashboard" className="text-muted-foreground hover:text-foreground">â† Back</Link>
         <h1 className="text-2xl font-bold">Active Delivery</h1>
       </div>
 
@@ -125,11 +201,11 @@ export default function PickupDetail() {
                 <p className="font-medium text-muted-foreground">{donation.quantity} meals</p>
                 {donation.latitude && donation.longitude && req.profiles?.latitude && req.profiles?.longitude && (
                   <>
-                    <span className="text-muted-foreground">•</span>
+                    <span className="text-muted-foreground">â€¢</span>
                     <p className="text-emerald-700 font-medium">
                       {calculateDistance(donation.latitude, donation.longitude, req.profiles.latitude, req.profiles.longitude).toFixed(1)} km
                     </p>
-                    <span className="text-muted-foreground">•</span>
+                    <span className="text-muted-foreground">â€¢</span>
                     <p className="text-blue-700 font-medium flex items-center gap-1">
                       <Clock className="w-3 h-3"/>
                       ~{estimateTravelTime(calculateDistance(donation.latitude, donation.longitude, req.profiles.latitude, req.profiles.longitude))} min ETA
@@ -216,3 +292,4 @@ export default function PickupDetail() {
     </div>
   )
 }
+
