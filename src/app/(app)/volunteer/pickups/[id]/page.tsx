@@ -32,7 +32,11 @@ type PickupDetailRow = {
       pickup_address: string | null
       latitude: number | null
       longitude: number | null
-      profiles?: { name: string } | null
+      profiles?: {
+    name: string
+    latitude: number | null
+    longitude: number | null
+  } | null
     } | null
   } | null
 }
@@ -213,8 +217,8 @@ export default function PickupDetail() {
               label: "Your Location"
             }}
             donorLocation={{
-              latitude: donation?.latitude ?? null,
-              longitude: donation?.longitude ?? null,
+              latitude: donation?.latitude ?? donation?.profiles?.latitude ?? null,
+              longitude: donation?.longitude ?? donation?.profiles?.longitude ?? null,
               label: "Donor Location"
             }}
             ngoLocation={{
