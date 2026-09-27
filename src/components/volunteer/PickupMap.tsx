@@ -1,9 +1,9 @@
 import mapboxgl, { Map, LngLatLike, LngLatBounds, Marker, Popup } from 'mapbox-gl';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 // Mapbox GL JS needs to access window, so we check for typeof window !== 'undefined'
 if (typeof window !== 'undefined') {
-  (mapboxgl as any).accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
+  mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 }
 
 // Import Mapbox GL CSS
@@ -21,6 +21,8 @@ type PickupMapProps = {
   donorLocation: Location;
   ngoLocation: Location;
   className?: string;
+  pickupStatus: string;
+  donorHandoffConfirmedAt: string | null;
 };
 
 export default function PickupMap({
@@ -28,13 +30,146 @@ export default function PickupMap({
   donorLocation,
   ngoLocation,
   className = '',
+  donorHandoffConfirmedAt,
 }: PickupMapProps) {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<Map | null>(null);
   const markersRef = useRef<(Marker | null)[]>([null, null, null]); // [volunteer, donor, ngo]
   const [mapReady, setMapReady] = useState(false);
+  const routeSourceId = 'pickup-route';
+  const routeLayerId = 'pickup-route-line';
+  const lastRouteRequestRef = useRef(0);
+  const routeRequestIdRef = useRef(0);
 
-  // Initialize map - runs once after mount
+  
+const updateRoute = useCallback(async () => {
+    const map = mapInstanceRef.current;
+
+    // Get route waypoints based on handoff status
+    const volunteer =
+      volunteerLocation.latitude !== null && volunteerLocation.longitude !== null
+        ? [volunteerLocation.longitude, volunteerLocation.latitude] as [number, number]
+        : null;
+
+    const donor =
+      donorLocation.latitude !== null && donorLocation.longitude !== null
+        ? [donorLocation.longitude, donorLocation.latitude] as [number, number]
+        : null;
+
+    const ngo =
+      ngoLocation.latitude !== null && ngoLocation.longitude !== null
+        ? [ngoLocation.longitude, ngoLocation.latitude] as [number, number]
+        : null;
+
+    let waypoints: [number, number][] = [];
+    if (donorHandoffConfirmedAt) {
+      if (donor && ngo) {
+        waypoints = [donor, ngo];
+      }
+    } else {
+      if (volunteer && donor && ngo) {
+        waypoints = [volunteer, donor, ngo];
+      }
+    }
+
+    if (!map || waypoints.length < 2 || !process.env.NEXT_PUBLIC_MAPBOX_TOKEN) {
+      return;
+    }
+
+    const now = Date.now();
+    if (now - lastRouteRequestRef.current < 15000) {
+      return;
+    }
+
+    lastRouteRequestRef.current = now;
+    const requestId = ++routeRequestIdRef.current;
+
+    const coordinates = waypoints
+      .map(([longitude, latitude]) => `${longitude},${latitude}`)
+      .join(';');
+
+    const url =
+      `https://api.mapbox.com/directions/v5/mapbox/driving/${coordinates}` +
+      `?access_token=${encodeURIComponent(process.env.NEXT_PUBLIC_MAPBOX_TOKEN)}` +
+      `&geometries=geojson&overview=full`;
+
+    try {
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        return;
+      }
+
+      const data = await response.json();
+
+      if (requestId !== routeRequestIdRef.current) {
+        return;
+      }
+
+      const geometry = data.routes?.[0]?.geometry;
+
+      if (!geometry || geometry.type !== 'LineString') {
+        return;
+      }
+
+      const updateSourceAndLayer = () => {
+        if (!map.isStyleLoaded()) {
+          return;
+        }
+
+        const feature = {
+          type: 'Feature' as const,
+          properties: {},
+          geometry,
+        };
+
+        const existingSource = map.getSource(routeSourceId);
+
+        if (existingSource && 'setData' in existingSource) {
+          (existingSource as mapboxgl.GeoJSONSource).setData(feature);
+        } else {
+          map.addSource(routeSourceId, {
+            type: 'geojson',
+            data: feature,
+          });
+        }
+
+        if (!map.getLayer(routeLayerId)) {
+          map.addLayer({
+            id: routeLayerId,
+            type: 'line',
+            source: routeSourceId,
+            layout: {
+              'line-join': 'round',
+              'line-cap': 'round',
+            },
+            paint: {
+              'line-color': '#3b82f6',
+              'line-width': 5,
+            },
+          });
+        }
+      };
+
+      if (map.isStyleLoaded()) {
+        updateSourceAndLayer();
+      } else {
+        map.once('load', updateSourceAndLayer);
+      }
+    } catch {
+      // Route failures should not break the map.
+    }
+  }, [
+    volunteerLocation.latitude,
+    volunteerLocation.longitude,
+    donorLocation.latitude,
+    donorLocation.longitude,
+    ngoLocation.latitude,
+    ngoLocation.longitude,
+    donorHandoffConfirmedAt,
+  ]);
+
+// Initialize map - runs once after mount
   useEffect(() => {
     if (typeof window === 'undefined' || !process.env.NEXT_PUBLIC_MAPBOX_TOKEN || !mapRef.current) {
       return;
@@ -59,6 +194,14 @@ export default function PickupMap({
           marker.remove();
         }
       });
+
+      if (map.getLayer(routeLayerId)) {
+        map.removeLayer(routeLayerId);
+      }
+
+      if (map.getSource(routeSourceId)) {
+        map.removeSource(routeSourceId);
+      }
 
       // Remove map
       if (map) {
@@ -138,12 +281,25 @@ export default function PickupMap({
     }
   }, [
     mapReady,
+    volunteerLocation,
+    donorLocation,
+    ngoLocation,
+  ]);
+
+  // Update driving route when locations or handoff state changes
+    useEffect(() => {
+    if (!mapReady) return;
+    updateRoute();
+    }, [
+    mapReady,
+    donorHandoffConfirmedAt,
     volunteerLocation.latitude,
     volunteerLocation.longitude,
     donorLocation.latitude,
     donorLocation.longitude,
     ngoLocation.latitude,
     ngoLocation.longitude,
+    updateRoute,
   ]);
 
   return (

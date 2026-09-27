@@ -222,6 +222,8 @@ export default function PickupDetail() {
               longitude: req?.profiles?.longitude ?? null,
               label: "NGO Location"
             }}
+            pickupStatus={pickup.status}
+            donorHandoffConfirmedAt={pickup.donor_handoff_confirmed_at}
             className="rounded-lg"
           />
         </div>
