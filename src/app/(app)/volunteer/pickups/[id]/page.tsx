@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { MapPin, CheckCircle2, Clock } from "lucide-react"
 import Link from "next/link"
 import { calculateDistance, estimateTravelTime } from "@/lib/utils"
+import PickupMap from "@/components/volunteer/PickupMap"
 
 type DestinationProfile = {
   name: string
@@ -42,6 +43,10 @@ export default function PickupDetail() {
   const [loading, setLoading] = useState(true)
   const [pickup, setPickup] = useState<PickupDetailRow | null>(null)
   const [updating, setUpdating] = useState(false)
+  const [volunteerLocation, setVolunteerLocation] = useState<{ latitude: number | null; longitude: number | null }>({
+    latitude: null,
+    longitude: null
+  })
 
   useEffect(() => {
     async function fetchPickup() {
@@ -100,6 +105,12 @@ export default function PickupDetail() {
         }
 
         lastLocationSentAtRef.current = now
+
+        // Update local state for map display
+        setVolunteerLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        })
 
         try {
           const {
@@ -190,6 +201,31 @@ export default function PickupDetail() {
         <Link href="/dashboard" className="text-muted-foreground hover:text-foreground">â† Back</Link>
         <h1 className="text-2xl font-bold">Active Delivery</h1>
       </div>
+
+      {/* Map Section */}
+      {pickup && (
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold mb-2">Delivery Route</h3>
+          <PickupMap
+            volunteerLocation={{
+              latitude: volunteerLocation.latitude,
+              longitude: volunteerLocation.longitude,
+              label: "Your Location"
+            }}
+            donorLocation={{
+              latitude: donation?.latitude ?? null,
+              longitude: donation?.longitude ?? null,
+              label: "Donor Location"
+            }}
+            ngoLocation={{
+              latitude: req?.profiles?.latitude ?? null,
+              longitude: req?.profiles?.longitude ?? null,
+              label: "NGO Location"
+            }}
+            className="rounded-lg"
+          />
+        </div>
+      )}
 
       <div className="grid gap-6">
         <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
