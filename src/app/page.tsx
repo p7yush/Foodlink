@@ -85,16 +85,16 @@ export default function LandingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {/* Header */}
-      <header className="px-6 lg:px-14 h-20 flex items-center justify-between border-b bg-background/80 backdrop-blur-md sticky top-0 z-50">
+      <header className="sticky top-0 z-50 flex h-20 min-w-0 items-center justify-between gap-1 border-b bg-background/80 px-2 backdrop-blur-md sm:gap-2 sm:px-6 lg:px-14">
         <Link
           href="/"
-          className="flex items-center gap-2 font-semibold"
+          className="flex min-w-0 shrink-0 items-center gap-2 font-semibold"
         >
           <div className="bg-primary/10 p-2 rounded-lg">
             <Leaf className="h-6 w-6 text-primary" />
           </div>
 
-          <span className="text-xl tracking-tight">
+          <span className="text-lg tracking-tight sm:text-xl">
             Foodlink
           </span>
         </Link>
@@ -123,7 +123,7 @@ export default function LandingPage() {
         </nav>
 
         {/* Header Buttons */}
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 shrink-0 items-center gap-1 sm:gap-3">
           {checkingUser ? (
             <span className="text-sm text-muted-foreground">
               Loading...
@@ -131,19 +131,19 @@ export default function LandingPage() {
           ) : !loggedIn ? (
             <>
               <Link href="/login">
-                <Button variant="ghost">
+                <Button variant="ghost" size="sm" className="h-10 px-2 sm:px-3">
                   Login
                 </Button>
               </Link>
 
               <Link href="/signup">
-                <Button variant="ghost">
+                <Button variant="ghost" size="sm" className="h-10 px-2 sm:px-3">
                   Create Account
                 </Button>
               </Link>
 
               <Link href="/donations/new">
-                <Button className="rounded-full shadow-lg">
+                <Button className="hidden rounded-full shadow-lg sm:inline-flex">
                   Post a Donation
                 </Button>
               </Link>
@@ -151,60 +151,48 @@ export default function LandingPage() {
           ) : role === "donor" ? (
             <>
               <Link href="/dashboard">
-                <Button
-                  variant="ghost"
-                  className="hidden sm:inline-flex"
-                >
+                <Button variant="ghost" size="sm" className="hidden h-10 px-2 sm:inline-flex sm:px-3">
                   View Operations
                 </Button>
               </Link>
 
               <Link href="/donations/new">
-                <Button className="rounded-full shadow-lg">
+                <Button className="hidden rounded-full shadow-lg sm:inline-flex">
                   Post a Donation
                 </Button>
               </Link>
 
-              <Button
-                variant="outline"
-                onClick={handleLogout}
-              >
+              <Button variant="outline" size="sm" className="h-10 px-2 sm:px-3" onClick={handleLogout}>
                 Logout
               </Button>
             </>
           ) : role === "ngo" ? (
             <>
-              <Link href="/donations">
-                <Button variant="ghost">
+              <Link href="/donations" className="hidden sm:block">
+                <Button variant="ghost" size="sm" className="h-10">
                   Browse Food
                 </Button>
               </Link>
 
-              <Link href="/requests">
-                <Button variant="ghost">
+              <Link href="/requests" className="hidden sm:block">
+                <Button variant="ghost" size="sm" className="h-10">
                   View Requests
                 </Button>
               </Link>
 
-              <Button
-                variant="outline"
-                onClick={handleLogout}
-              >
+              <Button variant="outline" size="sm" className="h-10 px-2 sm:px-3" onClick={handleLogout}>
                 Logout
               </Button>
             </>
           ) : (
             <>
-              <Link href="/dashboard">
-                <Button variant="ghost">
+              <Link href="/dashboard" className="hidden sm:block">
+                <Button variant="ghost" size="sm" className="h-10">
                   Dashboard
                 </Button>
               </Link>
 
-              <Button
-                variant="outline"
-                onClick={handleLogout}
-              >
+              <Button variant="outline" size="sm" className="h-10 px-2 sm:px-3" onClick={handleLogout}>
                 Logout
               </Button>
             </>
@@ -214,15 +202,15 @@ export default function LandingPage() {
 
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="w-full py-24 md:py-32 lg:py-40 px-6 lg:px-14 flex flex-col items-center text-center">
+        <section className="flex w-full flex-col items-center px-4 py-20 text-center sm:px-6 md:py-32 lg:px-14 lg:py-40">
           <Badge
             variant="outline"
-            className="mb-6 py-1.5 px-4 rounded-full border-primary/20 bg-primary/5 text-primary font-medium tracking-wide"
+            className="mb-6 max-w-full whitespace-normal break-words rounded-full border-primary/20 bg-primary/5 px-4 py-1.5 text-center font-medium tracking-wide text-primary"
           >
             Intelligent Food Rescue Network
           </Badge>
 
-          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight max-w-4xl text-foreground mb-8">
+          <h1 className="mb-8 max-w-4xl break-words text-4xl font-extrabold leading-tight tracking-tight text-foreground sm:text-5xl md:text-7xl">
             Rescue surplus food.
             <br />
 
@@ -239,12 +227,12 @@ export default function LandingPage() {
           </p>
 
           {/* Hero Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-20">
+          <div className="mb-16 flex w-full max-w-sm flex-col items-stretch gap-3 sm:mb-20 sm:max-w-none sm:flex-row sm:items-center sm:justify-center sm:gap-4">
             {checkingUser ? (
               <Button
                 size="lg"
                 disabled
-                className="h-14 px-8 rounded-full text-base"
+                className="h-14 w-full rounded-full px-6 text-base sm:w-auto sm:px-8"
               >
                 Loading...
               </Button>
@@ -254,7 +242,7 @@ export default function LandingPage() {
                   <Button
                     size="lg"
                     variant="outline"
-                    className="h-14 px-8 rounded-full text-base"
+                    className="h-14 w-full rounded-full px-6 text-base sm:w-auto sm:px-8"
                   >
                     Login
                   </Button>
@@ -264,7 +252,7 @@ export default function LandingPage() {
                   <Button
                     size="lg"
                     variant="outline"
-                    className="h-14 px-8 rounded-full text-base"
+                    className="h-14 w-full rounded-full px-6 text-base sm:w-auto sm:px-8"
                   >
                     Create Account
                   </Button>
@@ -273,7 +261,7 @@ export default function LandingPage() {
                 <Link href="/donations/new">
                   <Button
                     size="lg"
-                    className="h-14 px-8 rounded-full text-base shadow-xl"
+                    className="h-14 w-full rounded-full px-6 text-base shadow-xl sm:w-auto sm:px-8"
                   >
                     Post a Donation
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -285,7 +273,7 @@ export default function LandingPage() {
                 <Link href="/donations/new">
                   <Button
                     size="lg"
-                    className="h-14 px-8 rounded-full text-base shadow-xl"
+                    className="h-14 w-full rounded-full px-6 text-base shadow-xl sm:w-auto sm:px-8"
                   >
                     Post a Donation
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -296,7 +284,7 @@ export default function LandingPage() {
                   <Button
                     size="lg"
                     variant="outline"
-                    className="h-14 px-8 rounded-full text-base"
+                    className="h-14 w-full rounded-full px-6 text-base sm:w-auto sm:px-8"
                   >
                     View Operations
                   </Button>
@@ -307,7 +295,7 @@ export default function LandingPage() {
                 <Link href="/donations">
                   <Button
                     size="lg"
-                    className="h-14 px-8 rounded-full text-base shadow-xl"
+                    className="h-14 w-full rounded-full px-6 text-base shadow-xl sm:w-auto sm:px-8"
                   >
                     Browse Available Food
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -318,7 +306,7 @@ export default function LandingPage() {
                   <Button
                     size="lg"
                     variant="outline"
-                    className="h-14 px-8 rounded-full text-base"
+                    className="h-14 w-full rounded-full px-6 text-base sm:w-auto sm:px-8"
                   >
                     View Requests
                   </Button>
@@ -328,7 +316,7 @@ export default function LandingPage() {
               <Link href="/dashboard">
                 <Button
                   size="lg"
-                  className="h-14 px-8 rounded-full text-base"
+                  className="h-14 w-full rounded-full px-6 text-base sm:w-auto sm:px-8"
                 >
                   Open Dashboard
                 </Button>
@@ -337,10 +325,10 @@ export default function LandingPage() {
           </div>
 
           {/* Hero Visual */}
-          <div className="w-full max-w-5xl rounded-2xl border bg-card/50 shadow-2xl p-2 flex flex-col md:flex-row gap-2 overflow-hidden items-center justify-center relative">
+          <div className="relative flex w-full min-w-0 max-w-5xl flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border bg-card/50 p-2 shadow-2xl md:flex-row">
             <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent z-10 top-1/2"></div>
 
-            <div className="flex-1 p-6 border rounded-xl bg-background flex flex-col items-center text-center gap-4">
+            <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-xl border bg-background p-6 text-center md:flex-1">
               <div className="h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
                 <PackageIcon className="h-6 w-6" />
               </div>
@@ -358,7 +346,7 @@ export default function LandingPage() {
 
             <ArrowRight className="text-muted-foreground hidden md:block h-5 w-5 flex-shrink-0" />
 
-            <div className="flex-1 p-6 border rounded-xl bg-background flex flex-col items-center text-center gap-4">
+            <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-xl border bg-background p-6 text-center md:flex-1">
               <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
                 <ShieldCheck className="h-6 w-6" />
               </div>
@@ -376,7 +364,7 @@ export default function LandingPage() {
 
             <ArrowRight className="text-muted-foreground hidden md:block h-5 w-5 flex-shrink-0" />
 
-            <div className="flex-1 p-6 border rounded-xl bg-background flex flex-col items-center text-center gap-4 shadow-sm border-primary/20 relative z-20">
+            <div className="relative z-20 flex w-full min-w-0 flex-col items-center gap-4 rounded-xl border border-primary/20 bg-background p-6 text-center shadow-sm md:flex-1">
               <div className="absolute -top-3 -right-3">
                 <span className="relative flex h-6 w-6">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
@@ -407,7 +395,7 @@ export default function LandingPage() {
           id="impact"
           className="w-full py-20 bg-muted/30 border-y"
         >
-          <div className="max-w-7xl mx-auto px-6 lg:px-14">
+          <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-14">
             <div className="text-center mb-10 space-y-2">
               <h3 className="text-2xl md:text-3xl font-bold tracking-tight">
                 Live network numbers
@@ -416,9 +404,9 @@ export default function LandingPage() {
                 Counted from completed deliveries in the Foodlink database, not estimates.
               </p>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 text-center">
+            <div className="grid grid-cols-1 gap-6 text-center sm:grid-cols-2 md:grid-cols-4 md:gap-12">
               <div className="space-y-2">
-                <h4 className="text-4xl md:text-5xl font-bold tracking-tight text-primary">
+                <h4 className="break-words text-3xl font-bold tracking-tight text-primary sm:text-4xl md:text-5xl">
                   {stats ? stats.meals_rescued.toLocaleString() : "—"}
                 </h4>
 
@@ -428,7 +416,7 @@ export default function LandingPage() {
               </div>
 
               <div className="space-y-2">
-                <h4 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground">
+                <h4 className="break-words text-3xl font-bold tracking-tight text-foreground sm:text-4xl md:text-5xl">
                   {stats ? ((stats.meals_rescued * KG_PER_MEAL) / 1000).toFixed(2) : "—"}
                 </h4>
 
@@ -438,7 +426,7 @@ export default function LandingPage() {
               </div>
 
               <div className="space-y-2">
-                <h4 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground">
+                <h4 className="break-words text-3xl font-bold tracking-tight text-foreground sm:text-4xl md:text-5xl">
                   {stats ? stats.active_volunteers : "—"}
                 </h4>
 
@@ -448,7 +436,7 @@ export default function LandingPage() {
               </div>
 
               <div className="space-y-2">
-                <h4 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground">
+                <h4 className="break-words text-3xl font-bold tracking-tight text-foreground sm:text-4xl md:text-5xl">
                   {stats ? stats.partner_shelters : "—"}
                 </h4>
 
@@ -463,7 +451,7 @@ export default function LandingPage() {
         {/* How It Works */}
         <section
           id="how-it-works"
-          className="w-full py-24 md:py-32 px-6 lg:px-14 max-w-7xl mx-auto"
+          className="mx-auto w-full max-w-7xl px-4 py-20 sm:px-6 md:py-32 lg:px-14"
         >
           <div className="text-center mb-16 max-w-3xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
@@ -509,7 +497,7 @@ export default function LandingPage() {
           id="network"
           className="w-full py-24 bg-muted/30 border-y"
         >
-          <div className="max-w-4xl mx-auto px-6 text-center">
+          <div className="mx-auto w-full max-w-4xl px-4 text-center sm:px-6">
             <div className="mx-auto mb-6 h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
               <MapPin className="h-7 w-7 text-primary" />
             </div>

@@ -224,16 +224,17 @@ export default function PickupDetail() {
   })
 
   return (
-    <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-6">
-      <div className="flex items-center gap-4">
-        <Link href="/dashboard" className="text-muted-foreground hover:text-foreground">â† Back</Link>
-        <h1 className="text-2xl font-bold">Active Delivery</h1>
+    <div className="mx-auto w-full min-w-0 max-w-3xl space-y-6 p-3 sm:p-4 md:p-6">
+      <div className="flex min-w-0 flex-wrap items-center gap-3 sm:gap-4">
+        <Link href="/dashboard" className="inline-flex min-h-11 shrink-0 items-center gap-2 text-muted-foreground hover:text-foreground"><span aria-hidden="true">←</span> Back</Link>
+        <h1 className="min-w-0 break-words text-xl font-bold sm:text-2xl">Active Delivery</h1>
       </div>
 
       {/* Map Section */}
       {pickup && (
-        <div className="mb-6">
+        <div className="mb-6 min-w-0">
           <h3 className="text-lg font-semibold mb-2">Delivery Route</h3>
+          <div className="relative w-full min-w-0 overflow-hidden rounded-lg">
           <PickupMap
             volunteerLocation={{
               latitude: volunteerLocation.latitude,
@@ -254,6 +255,7 @@ export default function PickupDetail() {
             donorHandoffConfirmedAt={pickup.donor_handoff_confirmed_at}
             className="rounded-lg"
           />
+          </div>
           <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
             {googleMapsRoute.status === "ready" ? (
               <a
@@ -281,20 +283,18 @@ export default function PickupDetail() {
       )}
 
       <div className="grid gap-6">
-        <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
-          <div className="bg-primary/10 p-6 border-b border-primary/10 flex justify-between items-center">
-            <div>
-              <Badge className="mb-2 bg-primary/20 text-primary hover:bg-primary/30 border-0">Status: {pickup.status.replace(/_/g, ' ').toUpperCase()}</Badge>
-              <h2 className="text-2xl font-bold">{donation.title}</h2>
-              <div className="flex items-center gap-3 mt-2">
+        <Card className="min-w-0 overflow-hidden rounded-2xl border-border/50 shadow-sm">
+          <div className="flex min-w-0 flex-col items-start justify-between gap-3 border-b border-primary/10 bg-primary/10 p-4 sm:flex-row sm:items-center sm:p-6">
+            <div className="min-w-0">
+              <Badge className="mb-2 max-w-full whitespace-normal break-words border-0 bg-primary/20 text-primary hover:bg-primary/30">Status: {pickup.status.replace(/_/g, ' ').toUpperCase()}</Badge>
+              <h2 className="break-words text-2xl font-bold">{donation.title}</h2>
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
                 <p className="font-medium text-muted-foreground">{donation.quantity} meals</p>
                 {donation.latitude && donation.longitude && req.profiles?.latitude && req.profiles?.longitude && (
                   <>
-                    <span className="text-muted-foreground">â€¢</span>
                     <p className="text-emerald-700 font-medium">
                       {calculateDistance(donation.latitude, donation.longitude, req.profiles.latitude, req.profiles.longitude).toFixed(1)} km
                     </p>
-                    <span className="text-muted-foreground">â€¢</span>
                     <p className="text-blue-700 font-medium flex items-center gap-1">
                       <Clock className="w-3 h-3"/>
                       ~{estimateTravelTime(calculateDistance(donation.latitude, donation.longitude, req.profiles.latitude, req.profiles.longitude))} min ETA
@@ -305,7 +305,7 @@ export default function PickupDetail() {
             </div>
           </div>
           
-          <CardContent className="p-6 space-y-8">
+          <CardContent className="space-y-8 p-4 sm:p-6">
             {/* Timeline */}
             <div className="relative border-l-2 border-muted ml-3 space-y-6">
               
@@ -314,7 +314,7 @@ export default function PickupDetail() {
                 <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 border-background ${['en_route_to_donor', 'arrived_at_donor', 'collected', 'en_route_to_ngo', 'arrived_at_ngo', 'completed'].includes(pickup.status) ? 'bg-emerald-500' : 'bg-muted'}`} />
                 <h4 className="font-bold uppercase tracking-wider text-xs text-muted-foreground">Pickup From</h4>
                 <p className="font-medium text-lg mt-1">{donorName}</p>
-                <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1"><MapPin className="w-3 h-3"/> {donation.pickup_address}</p>
+                <p className="mt-1 flex min-w-0 items-start gap-1 break-words text-sm text-muted-foreground"><MapPin className="mt-1 h-3 w-3 shrink-0"/> <span className="min-w-0 break-words">{donation.pickup_address}</span></p>
               </div>
 
               {/* Step 2: NGO */}
@@ -322,12 +322,12 @@ export default function PickupDetail() {
                 <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 border-background ${['arrived_at_ngo', 'completed'].includes(pickup.status) ? 'bg-blue-500' : 'bg-muted'}`} />
                 <h4 className="font-bold uppercase tracking-wider text-xs text-muted-foreground">Deliver To</h4>
                 <p className="font-medium text-lg mt-1">{ngoName}</p>
-                <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1"><MapPin className="w-3 h-3"/> {req.profiles?.address || "NGO Destination Address"}</p>
+                <p className="mt-1 flex min-w-0 items-start gap-1 break-words text-sm text-muted-foreground"><MapPin className="mt-1 h-3 w-3 shrink-0"/> <span className="min-w-0 break-words">{req.profiles?.address || "NGO Destination Address"}</span></p>
               </div>
             </div>
           </CardContent>
 
-          <CardFooter className="bg-muted/10 p-6 flex-col gap-3">
+          <CardFooter className="flex-col gap-3 bg-muted/10 p-4 sm:p-6">
             {pickup.status === 'assigned' && (
               <Button disabled={updating} onClick={() => updateStatus('en_route_to_donor')} className="w-full py-6 text-lg rounded-xl shadow-md">
                 Start Route to Donor

@@ -63,7 +63,7 @@ export default function PickupHistory() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
+    <div className="mx-auto w-full min-w-0 max-w-5xl space-y-6 p-3 sm:p-4 md:p-6">
       <div className="flex flex-col gap-2 mb-6">
         <h1 className="text-3xl font-extrabold tracking-tight">Pickup History</h1>
         <p className="text-muted-foreground text-lg">Your complete log of food rescue operations.</p>
@@ -85,7 +85,7 @@ export default function PickupHistory() {
 
             return (
               <Card key={pickup.id} className="rounded-xl border-border/50 shadow-sm overflow-hidden hover:bg-muted/30 transition-colors">
-                <CardContent className="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <CardContent className="flex min-w-0 flex-col items-start justify-between gap-4 p-4 sm:p-5 md:flex-row md:items-center">
                   
                   <div className="flex-1 space-y-2">
                     <div className="flex items-center gap-2">
@@ -102,9 +102,9 @@ export default function PickupHistory() {
                       </span>
                     </div>
                     
-                    <h3 className="text-xl font-bold">{donation?.title} <span className="text-muted-foreground font-normal text-base">({donation?.quantity} meals)</span></h3>
+                    <h3 className="break-words text-xl font-bold">{donation?.title} <span className="text-base font-normal text-muted-foreground">({donation?.quantity} meals)</span></h3>
                     
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm text-muted-foreground">
                       <span className="font-medium text-foreground">{donorName}</span>
                       <span className="text-muted-foreground/50">→</span>
                       <span className="font-medium text-foreground">{ngoName}</span>

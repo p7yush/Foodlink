@@ -208,7 +208,7 @@ export default function CreateDonationPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 max-w-4xl mx-auto">
+    <div className="mx-auto flex w-full min-w-0 max-w-4xl flex-col gap-6">
       <div>
         <h2 className="text-2xl font-bold tracking-tight">
           Post surplus food
@@ -275,7 +275,7 @@ export default function CreateDonationPage() {
                       AI Analysis Complete
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid min-w-0 grid-cols-1 gap-4 min-[420px]:grid-cols-2 md:grid-cols-4">
                       <div>
                         <p className="text-xs text-muted-foreground">
                           Food Type
@@ -348,7 +348,7 @@ export default function CreateDonationPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="grid gap-2">
                   <Label htmlFor="category">
                     Category
@@ -380,7 +380,7 @@ export default function CreateDonationPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="grid gap-2">
                   <Label htmlFor="quantity">
                     Quantity
@@ -410,7 +410,7 @@ export default function CreateDonationPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="grid gap-2">
                   <Label htmlFor="preparedTime">
                     Prepared time

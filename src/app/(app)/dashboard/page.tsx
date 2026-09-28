@@ -136,8 +136,8 @@ export default function DashboardPage() {
   const isDonor = profile.role === "donor"
 
   return (
-    <div className="flex flex-col gap-6 max-w-7xl mx-auto">
-      <div className="flex flex-col gap-2 p-8 md:p-10 rounded-[1.5rem] bg-gradient-to-br from-primary/15 via-primary/5 to-background border border-primary/10 shadow-sm relative overflow-hidden mb-2">
+    <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-6">
+      <div className="relative mb-2 flex min-w-0 flex-col gap-2 overflow-hidden rounded-[1.5rem] border border-primary/10 bg-gradient-to-br from-primary/15 via-primary/5 to-background p-5 shadow-sm sm:p-8 md:p-10">
         <div className="absolute -top-10 -right-10 opacity-5 pointer-events-none transform rotate-12">
           <Package className="w-64 h-64 text-primary" />
         </div>
@@ -146,7 +146,7 @@ export default function DashboardPage() {
             {profile.role} Dashboard
           </span>
         </div>
-        <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight z-10">Welcome back, {profile.name}!</h2>
+        <h2 className="z-10 break-words text-3xl font-extrabold tracking-tight sm:text-4xl">Welcome back, {profile.name}!</h2>
         <p className="text-muted-foreground text-lg z-10 mt-1 max-w-xl">
           Here is an overview of your {isDonor ? 'donations' : profile.role === 'volunteer' ? 'logistics' : 'requests'} and community impact.
         </p>
@@ -203,15 +203,15 @@ export default function DashboardPage() {
 
                 return (
                   <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 hover:bg-muted/30 transition-colors">
-                    <div className="flex flex-col gap-1.5 mb-2 sm:mb-0">
+                    <div className="mb-2 flex min-w-0 flex-col gap-1.5 sm:mb-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm">{title || "Unknown Food"}</span>
+                        <span className="break-words text-sm font-semibold">{title || "Unknown Food"}</span>
                       </div>
                       <div className="text-xs text-muted-foreground flex items-center gap-3">
-                        <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {isDonor ? item.pickup_address : nestedDonation?.pickup_address}</span>
+                        <span className="flex min-w-0 items-start gap-1 break-words"><MapPin className="mt-0.5 h-3 w-3 shrink-0" /> <span className="min-w-0 break-words">{isDonor ? item.pickup_address : nestedDonation?.pickup_address}</span></span>
                       </div>
                     </div>
-                    <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-2">
+                    <div className="flex w-full min-w-0 flex-row items-center justify-between gap-2 sm:w-auto sm:flex-col sm:items-end">
                       <Badge variant="outline">{status}</Badge>
                       <span className="text-xs font-medium">Qty: {qty}</span>
                     </div>

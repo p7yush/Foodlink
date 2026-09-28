@@ -66,7 +66,7 @@ export default function MatchesPage() {
   const unmatched = rows.length
 
   return (
-    <div className="flex flex-col gap-6 max-w-7xl mx-auto h-full">
+    <div className="mx-auto flex h-full w-full min-w-0 max-w-7xl flex-col gap-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
         <div>
           <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
@@ -96,12 +96,12 @@ export default function MatchesPage() {
               {rows.map(({ donation, minutesLeft }) => (
                 <Card key={donation.id} className="shadow-sm border-border/50">
                   <CardContent className="p-4 flex flex-col gap-3">
-                    <div className="flex justify-between items-start gap-3">
-                      <div>
-                        <h4 className="font-bold">
+                    <div className="flex min-w-0 items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <h4 className="break-words font-bold">
                           {donation.quantity} × {donation.title}
                         </h4>
-                        <p className="text-sm text-muted-foreground">{donation.pickup_address ?? "No address"}</p>
+                        <p className="break-words text-sm text-muted-foreground">{donation.pickup_address ?? "No address"}</p>
                       </div>
                       <Badge variant={minutesLeft < 60 ? "destructive" : "outline"} className="shrink-0">
                         {formatCountdown(minutesLeft)}
@@ -162,7 +162,7 @@ export default function MatchesPage() {
                     </div>
                     <CardContent className="p-0 flex flex-col">
                       <div className="p-4 flex flex-col sm:flex-row sm:items-center gap-4 border-b border-border/50 bg-emerald-500/5">
-                        <div className="flex-1">
+                        <div className="min-w-0 flex-1">
                           <p className="text-xs text-muted-foreground font-medium mb-1 uppercase tracking-wider">From</p>
                           <p className="font-bold truncate">
                             {donation.quantity} × {donation.title}
@@ -170,7 +170,7 @@ export default function MatchesPage() {
                           <p className="text-sm text-muted-foreground truncate">{donation.pickup_address ?? "No address"}</p>
                         </div>
                         <ArrowRight className="hidden sm:block text-muted-foreground h-5 w-5 shrink-0" />
-                        <div className="flex-1">
+                        <div className="min-w-0 flex-1">
                           <p className="text-xs text-muted-foreground font-medium mb-1 uppercase tracking-wider">To</p>
                           <p className="font-bold truncate">
                             {best.recipient.organization ?? best.recipient.name}

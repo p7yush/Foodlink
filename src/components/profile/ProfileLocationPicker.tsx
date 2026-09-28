@@ -507,7 +507,7 @@ export default function ProfileLocationPicker({
   const selectedAddress = location.address || "No readable address selected yet"
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       <div className="space-y-2">
         <label htmlFor="profile-location-search" className="text-sm font-medium">Search for an address</label>
         <div className="relative">
@@ -544,7 +544,7 @@ export default function ProfileLocationPicker({
                   onMouseEnter={() => setActiveResult(index)}
                   onClick={() => void selectSearchResult(candidate)}
                 >
-                  <span className="block font-medium">{candidate.address}</span>
+                  <span className="block break-words font-medium">{candidate.address}</span>
                   <span className="mt-1 block text-xs text-muted-foreground">{[candidate.city, candidate.state, candidate.pincode].filter(Boolean).join(", ")}</span>
                 </button>
               ))}
@@ -557,7 +557,7 @@ export default function ProfileLocationPicker({
         {searchError && !disabled && <p className="text-sm text-destructive" role="alert">{searchError}</p>}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid min-w-0 gap-4 sm:grid-cols-2">
         <div className="grid gap-2 sm:col-span-2">
           <label htmlFor="profile-location-address" className="text-sm font-medium">{addressLabel}</label>
           <Textarea
@@ -597,10 +597,10 @@ export default function ProfileLocationPicker({
       </div>
 
       {MAPBOX_TOKEN ? (
-        <div className="relative">
+        <div className="relative min-w-0">
           <div
             ref={mapContainerRef}
-            className="h-64 w-full overflow-hidden rounded-lg border bg-muted sm:h-80"
+          className="h-64 w-full min-w-0 max-w-full overflow-hidden rounded-lg border bg-muted sm:h-80"
             aria-label="Choose a profile location on the map"
             role="application"
           />

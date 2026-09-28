@@ -47,7 +47,7 @@ export function AnalyticsClient() {
   const hasDeliveries = impact.successfulDeliveries > 0
 
   return (
-    <div className="flex flex-col gap-6 max-w-7xl mx-auto h-full">
+    <div className="mx-auto flex h-full w-full min-w-0 max-w-7xl flex-col gap-6">
       <div>
         <h2 className="text-2xl font-bold tracking-tight">Impact Analytics</h2>
         <p className="text-muted-foreground">
@@ -113,7 +113,7 @@ export function AnalyticsClient() {
             <CardTitle className="text-lg">Meals Rescued Over Time</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px] w-full">
+            <div className="h-[300px] w-full min-w-0">
               {hasDeliveries ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <RechartsLineChart data={impact.monthly} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>

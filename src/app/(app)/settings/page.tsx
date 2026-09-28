@@ -61,7 +61,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-4xl flex-col gap-6">
+    <div className="mx-auto flex h-full w-full min-w-0 max-w-4xl flex-col gap-6">
       <div>
         <h2 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
           <SettingsIcon className="h-6 w-6 text-primary" /> Settings

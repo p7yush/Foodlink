@@ -103,7 +103,7 @@ export default function DonationsPage() {
   const isDonor = profile.role === "donor"
 
   return (
-    <div className="flex flex-col gap-6 max-w-7xl mx-auto h-full">
+    <div className="mx-auto flex h-full w-full min-w-0 max-w-7xl flex-col gap-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
@@ -149,7 +149,7 @@ export default function DonationsPage() {
                         {donation.description || "No description provided."}
                       </p>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm mt-2">
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
                       <div className="flex flex-col gap-1 p-2 bg-muted/30 rounded-md">
                         <span className="text-xs text-muted-foreground">Quantity</span>
                         <span className="font-semibold">{donation.quantity}</span>
@@ -195,7 +195,43 @@ export default function DonationsPage() {
             </div>
           </div>
 
-          <CardContent className="p-0 overflow-auto flex-1">
+          <div className="space-y-3 p-3 lg:hidden">
+            {donations.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">No donations found.</p>
+            ) : (
+              donations.map((donation) => {
+                const displayStatus = donationDisplayStatus(donation, fetchedAt)
+                return (
+                  <article key={donation.id} className="min-w-0 rounded-lg border bg-background p-4">
+                    <div className="flex min-w-0 items-start justify-between gap-3">
+                      <Link href={`/donations/${donation.id}`} className="min-w-0 break-words font-semibold text-primary hover:underline">
+                        {donation.title}
+                      </Link>
+                      <Badge className="max-w-[45%] shrink-0 whitespace-normal text-center" variant={displayStatus === "Available" ? "outline" : "default"}>
+                        {displayStatus}
+                      </Badge>
+                    </div>
+                    <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                      <div className="min-w-0">
+                        <dt className="text-xs text-muted-foreground">Food type</dt>
+                        <dd className="break-words font-medium">{donation.food_type || "Food"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-muted-foreground">Quantity</dt>
+                        <dd className="font-medium">{donation.quantity}</dd>
+                      </div>
+                      <div className="col-span-2 min-w-0">
+                        <dt className="text-xs text-muted-foreground">Expires</dt>
+                        <dd className="break-words">{donation.expiry_time ? new Date(donation.expiry_time).toLocaleString() : "Not set"}</dd>
+                      </div>
+                    </dl>
+                  </article>
+                )
+              })
+            )}
+          </div>
+
+          <CardContent className="hidden min-w-0 overflow-auto p-0 lg:block lg:flex-1">
             <Table>
               <TableHeader className="bg-muted/30 sticky top-0 backdrop-blur-sm">
                 <TableRow>

@@ -232,16 +232,16 @@ export default function RequestsPage() {
   }
 
   if (authLoading || loading) {
-    return <main className="p-8">Loading requests...</main>
+    return <main className="min-w-0 p-3 sm:p-4 md:p-8">Loading requests...</main>
   }
   
-  if (!profile) return <main className="p-8">Please log in.</main>
+  if (!profile) return <main className="min-w-0 p-3 sm:p-4 md:p-8">Please log in.</main>
 
   const isDonor = profile.role === "donor"
 
   return (
-    <main className="p-8">
-      <div className="mx-auto max-w-4xl">
+    <main className="min-w-0 p-3 sm:p-4 md:p-8">
+      <div className="mx-auto w-full min-w-0 max-w-4xl">
         <div className="mb-8">
           <h1 className="text-3xl font-bold">
             {isDonor ? "Incoming Requests" : "My Requests"}
@@ -376,7 +376,7 @@ export default function RequestsPage() {
                     <section className="mt-6 rounded-xl border border-primary/20 bg-primary/5 p-5" aria-label={`Order ${orderId} tracking`}>
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-2 font-semibold"><PackageCheck className="h-5 w-5 text-primary" /> Order details</div>
-                        <Badge variant="outline" className="font-mono">{orderId}</Badge>
+                        <Badge variant="outline" className="max-w-full break-all font-mono">{orderId}</Badge>
                       </div>
 
                       <div className="mt-4 grid gap-4 sm:grid-cols-2">

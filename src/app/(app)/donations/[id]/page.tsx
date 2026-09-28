@@ -145,7 +145,7 @@ export default function DonationDetailsPage() {
 
   if (loading) {
     return (
-      <main className="p-8">
+      <main className="min-w-0 p-3 sm:p-4 md:p-8">
         <p>Loading donation...</p>
       </main>
     )
@@ -153,7 +153,7 @@ export default function DonationDetailsPage() {
 
   if (!donation) {
     return (
-      <main className="p-8">
+      <main className="min-w-0 p-3 sm:p-4 md:p-8">
         <h1 className="text-2xl font-bold">Donation not found</h1>
         <p className="mt-2 text-gray-600">
           {loadError || "We could not find this donation."}
@@ -165,19 +165,19 @@ export default function DonationDetailsPage() {
   const isDonor = profile?.role === "donor" && donation.donor_id === profile?.id
 
   return (
-    <main className="p-8">
-      <div className="mx-auto max-w-3xl">
+    <main className="min-w-0 p-3 sm:p-4 md:p-8">
+      <div className="mx-auto w-full min-w-0 max-w-3xl">
         <div className="mb-6">
           <p className="text-sm text-gray-500">Donation ID</p>
 
-          <h1 className="text-3xl font-bold">{donation.title}</h1>
+          <h1 className="break-words text-2xl font-bold sm:text-3xl">{donation.title}</h1>
 
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 break-all text-sm text-gray-600">
             {donation.id}
           </p>
         </div>
 
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
+        <div className="min-w-0 rounded-xl border bg-white p-4 shadow-sm sm:p-6">
           <h2 className="text-xl font-semibold">
             Donation Details
           </h2>
@@ -188,7 +188,7 @@ export default function DonationDetailsPage() {
                 Description
               </p>
 
-              <p className="font-medium">
+              <p className="break-words font-medium">
                 {donation.description || "Not provided"}
               </p>
             </div>
@@ -198,7 +198,7 @@ export default function DonationDetailsPage() {
                 Quantity
               </p>
 
-              <p className="font-medium">
+              <p className="break-words font-medium">
                 {donation.quantity}
               </p>
             </div>
@@ -208,7 +208,7 @@ export default function DonationDetailsPage() {
                 Food Type
               </p>
 
-              <p className="font-medium">
+              <p className="break-words font-medium">
                 {donation.food_type || "Not provided"}
               </p>
             </div>
@@ -218,7 +218,7 @@ export default function DonationDetailsPage() {
                 Pickup Address
               </p>
 
-              <p className="font-medium">
+              <p className="break-words font-medium">
                 {donation.pickup_address || "Not provided"}
               </p>
             </div>

@@ -116,7 +116,7 @@ export default function AvailablePickups() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
+    <div className="mx-auto w-full min-w-0 max-w-5xl space-y-6 p-3 sm:p-4 md:p-6">
       <div className="flex flex-col gap-2 mb-6">
         <h1 className="text-3xl font-extrabold tracking-tight">Available Pickups</h1>
         <p className="text-muted-foreground text-lg">Claim a pickup task and help rescue food.</p>
@@ -146,11 +146,11 @@ export default function AvailablePickups() {
             const urgency = minutesLeft <= 120 ? "HIGH" : minutesLeft <= 360 ? "MEDIUM" : "LOW"
 
             return (
-              <Card key={pickup.id} className="rounded-2xl border-border/50 shadow-sm overflow-hidden flex flex-col">
-                <div className="bg-primary/10 p-4 border-b border-primary/10 flex justify-between items-start">
-                  <div>
+              <Card key={pickup.id} className="flex min-w-0 flex-col overflow-hidden rounded-2xl border-border/50 shadow-sm">
+                <div className="flex min-w-0 items-start justify-between gap-3 border-b border-primary/10 bg-primary/10 p-4">
+                  <div className="min-w-0 flex-1">
                     <Badge className="mb-2 bg-primary/20 text-primary hover:bg-primary/30 border-0">{donation.food_type}</Badge>
-                    <h3 className="text-xl font-bold">{donation.title}</h3>
+                    <h3 className="break-words text-xl font-bold">{donation.title}</h3>
                     <p className="font-medium text-muted-foreground text-sm mt-1">{donation.quantity} meals</p>
                   </div>
                   <Badge
@@ -164,37 +164,37 @@ export default function AvailablePickups() {
                 
                 <CardContent className="p-5 flex-1 space-y-4">
                   {donation.latitude && donation.longitude && pickup.profiles?.latitude && pickup.profiles?.longitude && (
-                    <div className="flex items-center gap-4 bg-muted/30 p-3 rounded-lg text-sm">
-                      <div className="flex items-center gap-1.5 text-emerald-600 font-medium">
+                    <div className="flex min-w-0 flex-col gap-3 rounded-lg bg-muted/30 p-3 text-sm sm:flex-row sm:items-center sm:gap-4">
+                      <div className="flex min-w-0 items-center gap-1.5 font-medium text-emerald-600">
                         <MapPin className="w-4 h-4" />
                         {calculateDistance(donation.latitude, donation.longitude, pickup.profiles.latitude, pickup.profiles.longitude).toFixed(1)} km route
                       </div>
-                      <div className="flex items-center gap-1.5 text-blue-600 font-medium border-l pl-4 border-border/50">
+                      <div className="flex min-w-0 items-center gap-1.5 border-t border-border/50 pt-3 font-medium text-blue-600 sm:border-l sm:border-t-0 sm:pt-0 sm:pl-4">
                         <Clock className="w-4 h-4" />
                         ~{estimateTravelTime(calculateDistance(donation.latitude, donation.longitude, pickup.profiles.latitude, pickup.profiles.longitude))} min ETA
                       </div>
                     </div>
                   )}
 
-                  <div className="flex gap-3">
+                  <div className="flex min-w-0 gap-3">
                     <div className="flex flex-col items-center mt-1">
                       <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
                       <div className="w-0.5 h-8 bg-border" />
                       <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
                     </div>
-                    <div className="space-y-4">
+                    <div className="min-w-0 space-y-4">
                       <div>
                         <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Pickup From</p>
                         <p className="font-medium">{donorName}</p>
-                        <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
-                          <MapPin className="w-3 h-3" /> {donation.pickup_address}
+                        <p className="mt-0.5 flex min-w-0 items-start gap-1 break-words text-sm text-muted-foreground">
+                          <MapPin className="mt-0.5 h-3 w-3 shrink-0" /> <span className="min-w-0 break-words">{donation.pickup_address}</span>
                         </p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Deliver To</p>
                         <p className="font-medium">{ngoName}</p>
-                        <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
-                          <MapPin className="w-3 h-3" /> {pickup.profiles?.address || "Destination Address"}
+                        <p className="mt-0.5 flex min-w-0 items-start gap-1 break-words text-sm text-muted-foreground">
+                          <MapPin className="mt-0.5 h-3 w-3 shrink-0" /> <span className="min-w-0 break-words">{pickup.profiles?.address || "Destination Address"}</span>
                         </p>
                       </div>
                     </div>

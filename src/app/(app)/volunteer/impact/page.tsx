@@ -61,7 +61,7 @@ export default function VolunteerImpact() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
+    <div className="mx-auto w-full min-w-0 max-w-5xl space-y-6 p-3 sm:p-4 md:p-6">
       <div className="flex flex-col gap-2 mb-8">
         <h1 className="text-3xl font-extrabold tracking-tight">Your Impact</h1>
         <p className="text-muted-foreground text-lg">See the real-world difference you&apos;re making.</p>
@@ -73,7 +73,7 @@ export default function VolunteerImpact() {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-sm font-medium text-emerald-800 dark:text-emerald-400">Meals Rescued</p>
-                <h3 className="text-4xl font-black mt-2 text-emerald-950 dark:text-emerald-50">{stats.mealsRescued}</h3>
+                <h3 className="mt-2 break-words text-3xl font-black text-emerald-950 dark:text-emerald-50 sm:text-4xl">{stats.mealsRescued}</h3>
               </div>
               <div className="p-3 bg-emerald-200/50 dark:bg-emerald-800/50 rounded-xl">
                 <Package className="w-6 h-6 text-emerald-700 dark:text-emerald-300" />
@@ -87,7 +87,7 @@ export default function VolunteerImpact() {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Completed Pickups</p>
-                <h3 className="text-4xl font-black mt-2">{stats.pickupsCompleted}</h3>
+                <h3 className="mt-2 break-words text-3xl font-black sm:text-4xl">{stats.pickupsCompleted}</h3>
               </div>
               <div className="p-3 bg-blue-100 dark:bg-blue-900/50 rounded-xl">
                 <Truck className="w-6 h-6 text-blue-600 dark:text-blue-400" />
@@ -101,7 +101,7 @@ export default function VolunteerImpact() {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Distance Travelled</p>
-                <h3 className="text-4xl font-black mt-2">{stats.distanceTravelled.toFixed(1)} <span className="text-lg text-muted-foreground font-normal">km</span></h3>
+                <h3 className="mt-2 break-words text-3xl font-black sm:text-4xl">{stats.distanceTravelled.toFixed(1)} <span className="text-lg font-normal text-muted-foreground">km</span></h3>
               </div>
               <div className="p-3 bg-orange-100 dark:bg-orange-900/50 rounded-xl">
                 <MapPin className="w-6 h-6 text-orange-600 dark:text-orange-400" />
@@ -115,7 +115,7 @@ export default function VolunteerImpact() {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Est. Food Diverted</p>
-                <h3 className="text-4xl font-black mt-2">{stats.foodDiverted.toFixed(1)} <span className="text-lg text-muted-foreground font-normal">kg</span></h3>
+                <h3 className="mt-2 break-words text-3xl font-black sm:text-4xl">{stats.foodDiverted.toFixed(1)} <span className="text-lg font-normal text-muted-foreground">kg</span></h3>
               </div>
               <div className="p-3 bg-green-100 dark:bg-green-900/50 rounded-xl">
                 <Leaf className="w-6 h-6 text-green-600 dark:text-green-400" />
@@ -128,7 +128,7 @@ export default function VolunteerImpact() {
       <div className="mt-12">
         <h2 className="text-2xl font-bold mb-6 flex items-center gap-2"><Trophy className="w-6 h-6 text-yellow-500"/> Badges & Achievements</h2>
         
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
           <Card className={`rounded-xl border-border/50 text-center flex flex-col items-center justify-center p-6 ${stats.pickupsCompleted >= 1 ? 'bg-background shadow-sm' : 'bg-muted/30 opacity-50'}`}>
             <div className="w-16 h-16 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center mb-4">
               <span className="text-2xl">🌱</span>
