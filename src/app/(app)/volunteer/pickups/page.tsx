@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { useAuth } from "@/components/providers/AuthProvider"
 import { supabase } from "@/lib/supabase"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
@@ -13,6 +14,7 @@ import { formatCountdown, minutesUntil } from "@/lib/matching"
 
 type DestinationProfile = {
   name: string
+  organization: string | null
   address: string | null
   latitude: number | null
   longitude: number | null
@@ -54,7 +56,7 @@ export default function AvailablePickups() {
         const { data, error } = await supabase
           .from("food_requests")
           .select(
-            "*, food_donations(*, profiles!food_donations_donor_id_fkey(name)), profiles!food_requests_ngo_id_fkey(name, address, latitude, longitude), pickups(id)"
+            "*, food_donations(*, profiles!food_donations_donor_id_fkey(name)), profiles!food_requests_ngo_id_fkey(name, organization, address, latitude, longitude), pickups(id)"
           )
           .eq("status", "accepted")
 
@@ -120,6 +122,12 @@ export default function AvailablePickups() {
         <p className="text-muted-foreground text-lg">Claim a pickup task and help rescue food.</p>
       </div>
 
+      {profile?.is_available === false && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm" role="status">
+          Your volunteer status is Unavailable, so you can’t accept new pickups. <Link href="/profile" className="font-medium underline">Update it in Profile</Link>.
+        </div>
+      )}
+
       <div className="grid gap-6 md:grid-cols-2">
         {pickups.length === 0 ? (
           <div className="col-span-full p-12 text-center bg-muted/20 rounded-2xl border border-dashed">
@@ -132,7 +140,7 @@ export default function AvailablePickups() {
             const donation = pickup.food_donations
             if (!donation) return null
 
-            const ngoName = pickup.profiles?.name || "Unknown NGO"
+            const ngoName = pickup.profiles?.organization || pickup.profiles?.name || "Unknown NGO"
             const donorName = donation.profiles?.name || "Unknown Donor"
             const minutesLeft = minutesUntil(donation.expiry_time, fetchedAt)
             const urgency = minutesLeft <= 120 ? "HIGH" : minutesLeft <= 360 ? "MEDIUM" : "LOW"
@@ -196,6 +204,7 @@ export default function AvailablePickups() {
                 <CardFooter className="p-5 pt-0 mt-auto">
                   <Button 
                     className="w-full rounded-xl py-6 text-lg shadow-md hover:shadow-lg transition-all"
+                    disabled={profile?.is_available === false}
                     onClick={() => handleAcceptPickup(pickup.id)}
                   >
                     Accept Pickup

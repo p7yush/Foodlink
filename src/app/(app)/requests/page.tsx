@@ -29,6 +29,7 @@ type RequestItem = {
   profiles: {
     id: string
     name: string | null
+    organization: string | null
     email: string | null
     role: string | null
     latitude: number | null
@@ -83,6 +84,7 @@ export default function RequestsPage() {
           profiles (
             id,
             name,
+            organization,
             email,
             role,
             latitude,
@@ -291,7 +293,7 @@ export default function RequestsPage() {
                     <>
                       <div>
                         <p className="text-sm text-gray-500">NGO</p>
-                        <p className="font-medium">{request.profiles?.name || "Unknown NGO"}</p>
+                        <p className="font-medium">{request.profiles?.organization || request.profiles?.name || "Unknown NGO"}</p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-500">NGO Email</p>

@@ -2,20 +2,23 @@
 
 import { createContext, useContext, useEffect, useState } from "react"
 import { type User } from "@supabase/supabase-js"
+import { usePathname, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
-import { useRouter, usePathname } from "next/navigation"
 
 type Profile = {
   id: string
   name: string
   email: string
   role: "donor" | "ngo" | "volunteer"
+  profile_image_path: string | null
+  is_available: boolean | null
 }
 
 type AuthContextType = {
   user: User | null
   profile: Profile | null
   loading: boolean
+  refreshProfile: () => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -23,6 +26,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   profile: null,
   loading: true,
+  refreshProfile: async () => {},
   logout: async () => {},
 })
 
@@ -36,10 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function loadUser() {
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
-
+        const { data: { session } } = await supabase.auth.getSession()
         if (!session?.user) {
           setUser(null)
           setProfile(null)
@@ -47,13 +48,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         setUser(session.user)
-
         const { data } = await supabase
           .from("profiles")
           .select("*")
           .eq("id", session.user.id)
           .single()
-
         setProfile(data as Profile)
       } catch (error) {
         console.error("Error loading auth:", error)
@@ -62,11 +61,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    loadUser()
+    void loadUser()
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
         setUser(session.user)
         const { data } = await supabase
@@ -82,17 +79,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false)
     })
 
-    return () => {
-      subscription.unsubscribe()
-    }
+    return () => subscription.unsubscribe()
   }, [])
 
   useEffect(() => {
-    // Basic protection for (app) routes
-    if (!loading && !user && pathname !== "/" && !pathname.startsWith("/login") && !pathname.startsWith("/signup")) {
+    const publicAuthRoutes = ["/login", "/signup", "/forgot-password", "/reset-password"]
+    const isPublicAuthRoute = publicAuthRoutes.some((route) => pathname.startsWith(route))
+    if (!loading && !user && pathname !== "/" && !isPublicAuthRoute) {
       router.push("/login?redirect=" + encodeURIComponent(pathname))
     }
   }, [user, loading, pathname, router])
+
+  const refreshProfile = async () => {
+    if (!user) {
+      setProfile(null)
+      return
+    }
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single()
+    if (!error && data) setProfile(data as Profile)
+  }
 
   const logout = async () => {
     await supabase.auth.signOut()
@@ -100,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, logout }}>
+    <AuthContext.Provider value={{ user, profile, loading, refreshProfile, logout }}>
       {children}
     </AuthContext.Provider>
   )

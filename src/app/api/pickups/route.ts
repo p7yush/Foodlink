@@ -28,14 +28,13 @@ export async function POST(request: Request) {
     // Verify user is volunteer
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, is_available")
       .eq("id", volunteer_id)
       .single()
 
     if (profileError || profile?.role !== "volunteer") {
       return NextResponse.json({ success: false, error: "Only volunteers can accept pickups" }, { status: 403 })
     }
-
     // Check if pickup already exists for this request
     const { data: existingPickup, error: existingPickupError } = await supabase
       .from("pickups")
@@ -53,6 +52,13 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, pickup: existingPickup, alreadyAssigned: true })
       }
       return NextResponse.json({ success: false, error: "This pickup has already been claimed by another volunteer." }, { status: 409 })
+    }
+
+    if (profile.is_available === false) {
+      return NextResponse.json({
+        success: false,
+        error: "Set your volunteer status to Available in Profile before accepting a pickup.",
+      }, { status: 403 })
     }
 
     // Insert new pickup

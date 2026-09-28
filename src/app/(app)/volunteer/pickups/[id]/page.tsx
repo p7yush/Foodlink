@@ -14,6 +14,7 @@ import PickupMap from "@/components/volunteer/PickupMap"
 
 type DestinationProfile = {
   name: string
+  organization: string | null
   address: string | null
   latitude: number | null
   longitude: number | null
@@ -34,6 +35,7 @@ type PickupDetailRow = {
       longitude: number | null
       profiles?: {
     name: string
+    organization: string | null
     latitude: number | null
     longitude: number | null
   } | null
@@ -60,7 +62,7 @@ export default function PickupDetail() {
         const { data, error } = await supabase
           .from("pickups")
           .select(
-            "*, food_requests(*, food_donations(*, profiles!food_donations_donor_id_fkey(name, latitude, longitude)), profiles!food_requests_ngo_id_fkey(name, address, latitude, longitude))"
+            "*, food_requests(*, food_donations(*, profiles!food_donations_donor_id_fkey(name, latitude, longitude)), profiles!food_requests_ngo_id_fkey(name, organization, address, latitude, longitude))"
           )
           .eq("id", id)
           .single()
@@ -199,7 +201,7 @@ export default function PickupDetail() {
   if (!req || !donation) return <div className="p-8">This pickup is missing its donation record.</div>
 
   const donorName = donation.profiles?.name ?? "Unknown Donor"
-  const ngoName = req.profiles?.name ?? "Unknown NGO"
+  const ngoName = req.profiles?.organization || req.profiles?.name || "Unknown NGO"
 
   return (
     <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-6">

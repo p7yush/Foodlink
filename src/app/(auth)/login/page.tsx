@@ -13,7 +13,7 @@ function LoginContent() {
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [message, setMessage] = useState("")
+  const [message, setMessage] = useState(searchParams.get("passwordUpdated") === "1" ? "Password updated. Sign in with your new password." : "")
   const [loading, setLoading] = useState(false)
 
   async function handleLogin(e: React.FormEvent) {
@@ -67,6 +67,11 @@ function LoginContent() {
             required
             className="w-full rounded-lg border px-4 py-3 outline-none focus:ring-2"
           />
+          <div className="mt-2 text-right">
+            <Link href="/forgot-password" className="text-sm font-medium text-primary underline-offset-4 hover:underline">
+              Forgot password?
+            </Link>
+          </div>
         </div>
 
         <button

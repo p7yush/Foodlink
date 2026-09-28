@@ -1,7 +1,8 @@
 "use client"
 
 import { usePathname } from "next/navigation"
-import { Menu } from "lucide-react"
+import Link from "next/link"
+import { Menu, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/components/providers/AuthProvider"
 
@@ -10,7 +11,7 @@ export function Header() {
   const { profile } = useAuth()
 
   // Don't render on landing page or auth pages
-  if (pathname === "/" || pathname.startsWith("/login") || pathname.startsWith("/signup")) return null
+  if (pathname === "/" || pathname.startsWith("/login") || pathname.startsWith("/signup") || pathname.startsWith("/forgot-password") || pathname.startsWith("/reset-password")) return null
 
   const getPageTitle = () => {
     if (pathname === "/dashboard") return "Dashboard"
@@ -26,6 +27,7 @@ export function Header() {
     if (pathname.startsWith("/volunteer/pickups/")) return "Delivery Run"
     if (pathname === "/volunteer/history") return "Pickup History"
     if (pathname === "/volunteer/impact") return "My Impact"
+    if (pathname === "/profile") return "Profile & Settings"
     return "Foodlink"
   }
 
@@ -39,6 +41,10 @@ export function Header() {
       <div className="w-full flex-1">
         <h1 className="text-lg font-semibold md:text-xl">{getPageTitle()}</h1>
       </div>
+      <Link href="/profile" className="inline-flex h-9 items-center gap-2 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:hidden" aria-label="Open profile settings">
+        <User className="h-4 w-4" />
+        <span className="sr-only">Profile</span>
+      </Link>
     </header>
   )
 }

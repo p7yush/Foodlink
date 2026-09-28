@@ -61,6 +61,7 @@ export function Sidebar() {
 
   const navItems = [
     ...(profile?.role === "donor" ? donorLinks : profile?.role === "volunteer" ? volunteerLinks : ngoLinks),
+    { name: "Profile", href: "/profile", icon: User },
     ...(profile?.role === "volunteer" ? [{ name: "Settings", href: "/settings", icon: Settings }] : []),
   ]
 

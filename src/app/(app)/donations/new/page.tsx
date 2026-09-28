@@ -34,9 +34,12 @@ export default function CreateDonationPage() {
   const [dietary, setDietary] = useState("")
   const [quantity, setQuantity] = useState("")
 
-  const [location, setLocation] = useState(
-    "Main Kitchen - Rear Entrance"
-  )
+  const [location, setLocation] = useState("")
+  const [profilePickup, setProfilePickup] = useState<{
+    address: string
+    latitude: number | null
+    longitude: number | null
+  }>({ address: "Main Kitchen - Rear Entrance", latitude: null, longitude: null })
 
   // Safe-until time
   const [safeUntil, setSafeUntil] = useState("15:30")
@@ -53,6 +56,23 @@ export default function CreateDonationPage() {
       if (!user) {
         router.replace("/login?redirect=/donations/new")
         return
+      }
+
+      const { data: donorProfile } = await supabase
+        .from("profiles")
+        .select("address, pickup_address, latitude, longitude")
+        .eq("id", user.id)
+        .maybeSingle()
+      if (donorProfile) {
+        const address = donorProfile.pickup_address || donorProfile.address || "Main Kitchen - Rear Entrance"
+        setProfilePickup({
+          address,
+          latitude: donorProfile.latitude,
+          longitude: donorProfile.longitude,
+        })
+        setLocation(address)
+      } else {
+        setLocation("Main Kitchen - Rear Entrance")
       }
 
       setCheckingLogin(false)
@@ -131,6 +151,9 @@ export default function CreateDonationPage() {
           food_type: dietary || category,
           pickup_address: location,
           donor_id: user.id,
+          ...(location.trim() === profilePickup.address.trim() && profilePickup.latitude != null && profilePickup.longitude != null
+            ? { latitude: profilePickup.latitude, longitude: profilePickup.longitude }
+            : {}),
 
           // IMPORTANT:
           // Save the Safe-until time as the donation expiry time

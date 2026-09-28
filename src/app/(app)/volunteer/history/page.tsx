@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Calendar, Clock, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
 
-type NamedProfile = { name: string } | null
+type NamedProfile = { name: string; organization?: string | null } | null
 
 type HistoryRow = {
   id: string
@@ -37,7 +37,7 @@ export default function PickupHistory() {
       try {
         const { data, error } = await supabase
           .from("pickups")
-          .select("*, food_requests(*, food_donations(*, profiles!food_donations_donor_id_fkey(name)), profiles!food_requests_ngo_id_fkey(name))")
+          .select("*, food_requests(*, food_donations(*, profiles!food_donations_donor_id_fkey(name)), profiles!food_requests_ngo_id_fkey(name, organization))")
           .eq("volunteer_id", user.id)
           .order("assigned_at", { ascending: false })
 
@@ -80,7 +80,7 @@ export default function PickupHistory() {
             const req = pickup.food_requests
             if (!req) return null
             const donation = req.food_donations
-            const ngoName = req.profiles?.name || "Unknown NGO"
+            const ngoName = req.profiles?.organization || req.profiles?.name || "Unknown NGO"
             const donorName = donation?.profiles?.name || "Unknown Donor"
 
             return (
