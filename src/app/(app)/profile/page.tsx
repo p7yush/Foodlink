@@ -8,7 +8,6 @@ import {
   Camera,
   CheckCircle2,
   Clock,
-  LocateFixed,
   LockKeyhole,
   MapPin,
   ShieldCheck,
@@ -22,7 +21,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { supabase } from "@/lib/supabase"
+import ProfileLocationPicker from "@/components/profile/ProfileLocationPicker"
+import {
+  passwordChangeErrorMessage,
+  validatePasswordChange,
+  verifyCurrentPasswordAndChange,
+} from "@/lib/change-password"
+import { isValidCoordinates, type ProfileLocation } from "@/lib/profile-location"
+import { createPasswordChangeAuthClient, supabase } from "@/lib/supabase"
 
 type Role = "volunteer" | "donor" | "ngo"
 type NotificationPreferences = Record<string, boolean>
@@ -217,16 +223,13 @@ function validateDraft(draft: ProfileDraft, role: Role) {
   if (role === "ngo" && !draft.organization.trim()) return "Enter your NGO name."
 
   if ((draft.latitude.trim() === "") !== (draft.longitude.trim() === "")) {
-    return "Enter both latitude and longitude, or clear both fields."
+    return "Choose a valid location using address search, the map, or current location."
   }
   if (hasCoordinates(draft)) {
     const latitude = Number(draft.latitude)
     const longitude = Number(draft.longitude)
-    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
-      return "Latitude must be between -90 and 90."
-    }
-    if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
-      return "Longitude must be between -180 and 180."
+    if (!isValidCoordinates(latitude, longitude)) {
+      return "Choose a valid location using address search, the map, or current location."
     }
   }
 
@@ -266,6 +269,8 @@ export default function ProfilePage() {
   const [draft, setDraft] = useState<ProfileDraft | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [locationResolving, setLocationResolving] = useState(false)
+  const [locationNeedsReview, setLocationNeedsReview] = useState(false)
   const [editing, setEditing] = useState(false)
   const [loadError, setLoadError] = useState("")
   const [saveError, setSaveError] = useState("")
@@ -274,7 +279,6 @@ export default function ProfilePage() {
   const [removeImage, setRemoveImage] = useState(false)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const photoPreviewRef = useRef<string | null>(null)
-  const [locationMessage, setLocationMessage] = useState("")
   const [photoMessage, setPhotoMessage] = useState("")
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
@@ -349,9 +353,10 @@ export default function ProfilePage() {
     clearPhotoPreview()
     setRemoveImage(false)
     setEditing(true)
+    setLocationResolving(false)
+    setLocationNeedsReview(false)
     setSaveError("")
     setSaveMessage("")
-    setLocationMessage("")
     setPhotoMessage("")
   }
 
@@ -361,9 +366,10 @@ export default function ProfilePage() {
     clearPhotoPreview()
     setRemoveImage(false)
     setEditing(false)
+    setLocationResolving(false)
+    setLocationNeedsReview(false)
     setSaveError("")
     setSaveMessage("")
-    setLocationMessage("")
     setPhotoMessage("")
   }
 
@@ -387,26 +393,30 @@ export default function ProfilePage() {
     setRemoveImage(false)
   }
 
-  function useDeviceLocation() {
-    setLocationMessage("")
-    if (!navigator.geolocation) {
-      setLocationMessage("This browser does not provide location access.")
-      return
-    }
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        updateDraft("latitude", coords.latitude.toFixed(6))
-        updateDraft("longitude", coords.longitude.toFixed(6))
-        setLocationMessage("Profile location updated. This does not change live pickup tracking.")
-      },
-      () => setLocationMessage("Location access was unavailable. You can enter coordinates manually."),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
-    )
+  function profileLocationChanged(location: ProfileLocation) {
+    setDraft((previous) => previous ? {
+      ...previous,
+      address: location.address,
+      city: location.city,
+      state: location.state,
+      pincode: location.pincode,
+      latitude: location.latitude === null ? "" : String(location.latitude),
+      longitude: location.longitude === null ? "" : String(location.longitude),
+      ...(profile?.role === "donor" ? { pickup_address: location.address } : {}),
+    } : previous)
   }
 
   async function saveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!user || !profile || !draft) return
+
+    if (locationResolving || locationNeedsReview) {
+      setSaveError(locationResolving
+        ? "Wait for the selected location address to finish loading."
+        : "Enter or select a readable address for the selected coordinates before saving.")
+      setSaveMessage("")
+      return
+    }
 
     const validationError = validateDraft(draft, profile.role)
     if (validationError) {
@@ -539,16 +549,9 @@ export default function ProfilePage() {
       setPasswordError("Your account email could not be loaded.")
       return
     }
-    if (!currentPassword) {
-      setPasswordError("Enter your current password.")
-      return
-    }
-    if (newPassword.length < 8 || !/[A-Za-z]/.test(newPassword) || !/\d/.test(newPassword)) {
-      setPasswordError("Use at least 8 characters, including a letter and a number.")
-      return
-    }
-    if (newPassword !== confirmPassword) {
-      setPasswordError("The new passwords do not match.")
+    const validationError = validatePasswordChange(currentPassword, newPassword, confirmPassword)
+    if (validationError) {
+      setPasswordError(validationError)
       return
     }
 
@@ -556,14 +559,23 @@ export default function ProfilePage() {
     setPasswordError("")
     setPasswordMessage("")
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword,
-        current_password: currentPassword,
-      })
-      if (error) {
-        setPasswordError(error.message.toLowerCase().includes("current")
-          ? "The current password is incorrect."
-          : error.message)
+      const result = await verifyCurrentPasswordAndChange(
+        createPasswordChangeAuthClient(),
+        user.id,
+        user.email,
+        currentPassword,
+        newPassword,
+      )
+      if (result.status === "verification-failed") {
+        setPasswordError(passwordChangeErrorMessage(result.error, "verification"))
+      } else if (result.status === "verification-incomplete") {
+        setPasswordError("Supabase could not establish a valid sign-in session. Please sign in again.")
+      } else if (result.status === "account-mismatch") {
+        setPasswordError("Your sign-in account changed. Please sign in again before changing your password.")
+      } else if (result.status === "session-changed") {
+        setPasswordError("Your verified sign-in session changed. Please try again.")
+      } else if (result.status === "update-failed") {
+        setPasswordError(passwordChangeErrorMessage(result.error, "update"))
       } else {
         setCurrentPassword("")
         setNewPassword("")
@@ -599,6 +611,16 @@ export default function ProfilePage() {
 
   const categoryLabel = role === "volunteer" ? "Preferred food categories" : "Food categories accepted"
   const pageName = role === "ngo" ? profile.organization || draft.organization || "NGO profile" : draft.name || "Your profile"
+  const locationTitle = role === "donor" ? "Pickup location" : role === "ngo" ? "NGO location" : "Profile location"
+  const pickerAddress = role === "donor" ? draft.pickup_address || draft.address : draft.address
+  const profileLocation: ProfileLocation = {
+    address: pickerAddress,
+    city: draft.city,
+    state: draft.state,
+    pincode: draft.pincode,
+    latitude: draft.latitude.trim() ? Number(draft.latitude) : null,
+    longitude: draft.longitude.trim() ? Number(draft.longitude) : null,
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -689,22 +711,6 @@ export default function ProfilePage() {
                 <Label htmlFor="phone">Phone</Label>
                 <Input id="phone" type="tel" autoComplete="tel" maxLength={24} value={draft.phone} disabled={!editing || saving} onChange={(event) => updateDraft("phone", event.target.value)} />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="city">City</Label>
-                <Input id="city" autoComplete="address-level2" maxLength={100} value={draft.city} disabled={!editing || saving} onChange={(event) => updateDraft("city", event.target.value)} />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="state">State</Label>
-                <Input id="state" autoComplete="address-level1" maxLength={100} value={draft.state} disabled={!editing || saving} onChange={(event) => updateDraft("state", event.target.value)} />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="pincode">Pincode</Label>
-                <Input id="pincode" inputMode="numeric" autoComplete="postal-code" maxLength={6} value={draft.pincode} disabled={!editing || saving} onChange={(event) => updateDraft("pincode", event.target.value.replace(/\D/g, ""))} />
-              </div>
-              <div className="grid gap-2 sm:col-span-2">
-                <Label htmlFor="address">Address</Label>
-                <Textarea id="address" autoComplete="street-address" maxLength={500} value={draft.address} disabled={!editing || saving} onChange={(event) => updateDraft("address", event.target.value)} className="min-h-20" />
-              </div>
             </div>
           </CardContent>
         </Card>
@@ -764,11 +770,6 @@ export default function ProfilePage() {
                 <Input id="contact-person" maxLength={120} value={draft.contact_person} disabled={!editing || saving} onChange={(event) => updateDraft("contact_person", event.target.value)} />
               </div>
               <div className="grid gap-2 sm:col-span-2">
-                <Label htmlFor="pickup-address">Default pickup address</Label>
-                <Textarea id="pickup-address" maxLength={500} value={draft.pickup_address} disabled={!editing || saving} onChange={(event) => updateDraft("pickup_address", event.target.value)} className="min-h-20" />
-                <p className="text-xs text-muted-foreground">New donation pickups use this as their starting address. A donation can still have its own pickup address.</p>
-              </div>
-              <div className="grid gap-2 sm:col-span-2">
                 <Label htmlFor="pickup-instructions">Pickup instructions</Label>
                 <Textarea id="pickup-instructions" maxLength={1000} value={draft.pickup_instructions} disabled={!editing || saving} onChange={(event) => updateDraft("pickup_instructions", event.target.value)} className="min-h-24" placeholder="Entrance, loading area, or handoff notes" />
               </div>
@@ -826,30 +827,26 @@ export default function ProfilePage() {
 
         <Card className="border-border/60 shadow-sm">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><MapPin className="h-5 w-5 text-primary" /> Profile location</CardTitle>
+            <CardTitle className="flex items-center gap-2"><MapPin className="h-5 w-5 text-primary" /> {locationTitle}</CardTitle>
             <CardDescription>
               {role === "volunteer"
                 ? "This is your profile location. Active pickup GPS is saved separately for each pickup."
-                : "Used as your saved location for donor pickups or NGO destinations."}
+                : role === "donor"
+                  ? "This default pickup location is saved with your donor profile and used to start new pickup coordination."
+                  : "This saved NGO location is used as a destination for map and delivery coordination."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="grid gap-2">
-                <Label htmlFor="latitude">Latitude</Label>
-                <Input id="latitude" inputMode="decimal" value={draft.latitude} disabled={!editing || saving} onChange={(event) => updateDraft("latitude", event.target.value)} placeholder="e.g. 18.5204" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="longitude">Longitude</Label>
-                <Input id="longitude" inputMode="decimal" value={draft.longitude} disabled={!editing || saving} onChange={(event) => updateDraft("longitude", event.target.value)} placeholder="e.g. 73.8567" />
-              </div>
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <Button type="button" variant="outline" size="sm" disabled={!editing || saving} onClick={useDeviceLocation}>
-                <LocateFixed className="mr-2 h-4 w-4" /> Use device location
-              </Button>
-              {locationMessage && <p className="text-sm text-muted-foreground" role="status">{locationMessage}</p>}
-            </div>
+            <ProfileLocationPicker
+              location={profileLocation}
+              disabled={!editing || saving}
+              addressLabel={role === "donor" ? "Default pickup address" : role === "ngo" ? "NGO address" : "Profile address"}
+              addressHelpText={role === "donor" ? "New donation pickups use this starting address. A donation can still have its own pickup address." : undefined}
+              needsAddressReview={locationNeedsReview}
+              onChange={profileLocationChanged}
+              onResolvingChange={setLocationResolving}
+              onAddressReviewChange={setLocationNeedsReview}
+            />
           </CardContent>
         </Card>
 
@@ -880,8 +877,8 @@ export default function ProfilePage() {
         {editing && (
           <div className="sticky bottom-3 z-10 flex flex-col-reverse gap-3 rounded-xl border bg-background/95 p-3 shadow-lg backdrop-blur sm:flex-row sm:justify-end">
             <Button type="button" variant="outline" onClick={cancelEditing} disabled={saving}>Cancel</Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? "Saving changes…" : "Save Changes"}
+            <Button type="submit" disabled={saving || locationResolving || locationNeedsReview}>
+              {saving ? "Saving changes…" : locationResolving ? "Verifying location…" : locationNeedsReview ? "Enter or select an address" : "Save Changes"}
             </Button>
           </div>
         )}

@@ -42,3 +42,17 @@ export function createAuthedClient(accessToken: string): SupabaseClient {
     global: { headers: { Authorization: `Bearer ${accessToken}` } },
   })
 }
+
+// Password reauthentication uses a private in-memory Auth session so it cannot
+// replace or broadcast changes to the app's persistent browser session.
+export function createPasswordChangeAuthClient(): SupabaseClient["auth"] {
+  const { url, key } = requireConfig()
+  return createClient(url, key, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+      storageKey: `foodlink-password-verification-${crypto.randomUUID()}`,
+    },
+  }).auth
+}
