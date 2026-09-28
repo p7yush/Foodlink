@@ -27,6 +27,7 @@ import {
   validatePasswordChange,
   verifyCurrentPasswordAndChange,
 } from "@/lib/change-password"
+import { getProfileImageUrl } from "@/lib/profile-image"
 import { isValidCoordinates, type ProfileLocation } from "@/lib/profile-location"
 import { createPasswordChangeAuthClient, supabase } from "@/lib/supabase"
 
@@ -150,11 +151,6 @@ function makeDraft(profile: ProfileRow): ProfileDraft {
       ]),
     ),
   }
-}
-
-function publicAvatarUrl(path: string | null) {
-  if (!path) return null
-  return supabase.storage.from("foodlink-profile-images").getPublicUrl(path).data.publicUrl
 }
 
 function hasCoordinates(draft: ProfileDraft) {
@@ -333,7 +329,7 @@ export default function ProfilePage() {
     () => profile && draft ? completionFor(profile, draft) : null,
     [profile, draft],
   )
-  const avatarUrl = photoPreview || (removeImage ? null : publicAvatarUrl(profile?.profile_image_path ?? null))
+  const avatarUrl = photoPreview || (removeImage ? null : getProfileImageUrl(profile?.profile_image_path))
   const role = profile?.role ?? authProfile?.role ?? null
 
   function updateDraft<K extends keyof ProfileDraft>(key: K, value: ProfileDraft[K]) {

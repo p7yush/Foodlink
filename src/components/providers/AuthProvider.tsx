@@ -11,6 +11,8 @@ type Profile = {
   email: string
   role: "donor" | "ngo" | "volunteer"
   profile_image_path: string | null
+  latitude: number | null
+  longitude: number | null
   is_available: boolean | null
 }
 

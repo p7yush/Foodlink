@@ -4,6 +4,8 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/components/providers/AuthProvider"
+import { ProfileAvatar } from "@/components/profile/ProfileAvatar"
+import { getProfileImageUrl } from "@/lib/profile-image"
 import {
   LayoutDashboard,
   PackageSearch,
@@ -98,9 +100,11 @@ export function Sidebar() {
         </div>
         <div className="mt-auto p-4 border-t">
           <div className="flex items-center gap-3 mb-4">
-            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center uppercase font-bold text-primary">
-              {profile?.name?.charAt(0) || <User className="h-5 w-5" />}
-            </div>
+            <ProfileAvatar
+              src={getProfileImageUrl(profile?.profile_image_path)}
+              name={profile?.name}
+              className="h-10 w-10 text-base"
+            />
             <div className="flex flex-col overflow-hidden">
               <span className="text-sm font-medium truncate">{profile?.name || "User"}</span>
               <span className="text-xs text-muted-foreground capitalize">

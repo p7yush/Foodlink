@@ -5,12 +5,13 @@ import { useParams } from "next/navigation"
 import { useAuth } from "@/components/providers/AuthProvider"
 import { supabase } from "@/lib/supabase"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { MapPin, CheckCircle2, Clock } from "lucide-react"
+import { MapPin, CheckCircle2, Clock, Navigation } from "lucide-react"
 import Link from "next/link"
 import { calculateDistance, estimateTravelTime } from "@/lib/utils"
 import PickupMap from "@/components/volunteer/PickupMap"
+import { buildGoogleMapsDirections } from "@/lib/google-maps-directions"
 
 type DestinationProfile = {
   name: string
@@ -45,7 +46,7 @@ type PickupDetailRow = {
 
 export default function PickupDetail() {
   const { id } = useParams()
-  const { user } = useAuth()
+  const { user, profile: currentProfile } = useAuth()
   const [loading, setLoading] = useState(true)
   const [pickup, setPickup] = useState<PickupDetailRow | null>(null)
   const [updating, setUpdating] = useState(false)
@@ -202,6 +203,25 @@ export default function PickupDetail() {
 
   const donorName = donation.profiles?.name ?? "Unknown Donor"
   const ngoName = req.profiles?.organization || req.profiles?.name || "Unknown NGO"
+  const donorCoordinates = {
+    latitude: donation.latitude ?? donation.profiles?.latitude ?? null,
+    longitude: donation.longitude ?? donation.profiles?.longitude ?? null,
+  }
+  const ngoCoordinates = {
+    latitude: req.profiles?.latitude ?? null,
+    longitude: req.profiles?.longitude ?? null,
+  }
+  const googleMapsRoute = buildGoogleMapsDirections({
+    volunteerLiveLocation: volunteerLocation,
+    volunteerProfileLocation: {
+      latitude: currentProfile?.latitude ?? null,
+      longitude: currentProfile?.longitude ?? null,
+    },
+    donorLocation: donorCoordinates,
+    ngoLocation: ngoCoordinates,
+    donorHandoffConfirmedAt: pickup.donor_handoff_confirmed_at,
+    pickupStatus: pickup.status,
+  })
 
   return (
     <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-6">
@@ -221,19 +241,42 @@ export default function PickupDetail() {
               label: "Your Location"
             }}
             donorLocation={{
-              latitude: donation?.latitude ?? donation?.profiles?.latitude ?? null,
-              longitude: donation?.longitude ?? donation?.profiles?.longitude ?? null,
+              latitude: donorCoordinates.latitude,
+              longitude: donorCoordinates.longitude,
               label: "Donor Location"
             }}
             ngoLocation={{
-              latitude: req?.profiles?.latitude ?? null,
-              longitude: req?.profiles?.longitude ?? null,
+              latitude: ngoCoordinates.latitude,
+              longitude: ngoCoordinates.longitude,
               label: "NGO Location"
             }}
             pickupStatus={pickup.status}
             donorHandoffConfirmedAt={pickup.donor_handoff_confirmed_at}
             className="rounded-lg"
           />
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+            {googleMapsRoute.status === "ready" ? (
+              <a
+                href={googleMapsRoute.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={buttonVariants({ variant: "outline", className: "w-full sm:w-auto" })}
+              >
+                <Navigation className="h-4 w-4" aria-hidden="true" />
+                Open in Google Maps
+              </a>
+            ) : (
+              <Button type="button" variant="outline" disabled className="w-full sm:w-auto">
+                <Navigation className="h-4 w-4" aria-hidden="true" />
+                Open in Google Maps
+              </Button>
+            )}
+            {googleMapsRoute.status === "unavailable" ? (
+              <p className="text-sm text-muted-foreground" role="status">{googleMapsRoute.reason}</p>
+            ) : googleMapsRoute.notice ? (
+              <p className="text-sm text-muted-foreground" role="status">{googleMapsRoute.notice}</p>
+            ) : null}
+          </div>
         </div>
       )}
 

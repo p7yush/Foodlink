@@ -2,9 +2,11 @@
 
 import { usePathname } from "next/navigation"
 import Link from "next/link"
-import { Menu, User } from "lucide-react"
+import { Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/components/providers/AuthProvider"
+import { ProfileAvatar } from "@/components/profile/ProfileAvatar"
+import { getProfileImageUrl } from "@/lib/profile-image"
 
 export function Header() {
   const pathname = usePathname()
@@ -42,7 +44,11 @@ export function Header() {
         <h1 className="text-lg font-semibold md:text-xl">{getPageTitle()}</h1>
       </div>
       <Link href="/profile" className="inline-flex h-9 items-center gap-2 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:hidden" aria-label="Open profile settings">
-        <User className="h-4 w-4" />
+        <ProfileAvatar
+          src={getProfileImageUrl(profile?.profile_image_path)}
+          name={profile?.name}
+          className="h-8 w-8 text-xs"
+        />
         <span className="sr-only">Profile</span>
       </Link>
     </header>
