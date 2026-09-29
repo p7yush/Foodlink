@@ -35,21 +35,31 @@ export async function POST(request: Request) {
     if (profileError || profile?.role !== "volunteer") {
       return NextResponse.json({ success: false, error: "Only volunteers can accept pickups" }, { status: 403 })
     }
-    // Check if pickup already exists for this request
-    const { data: existingPickup, error: existingPickupError } = await supabase
-      .from("pickups")
-      .select("id, request_id, volunteer_id, status, assigned_at")
-      .eq("request_id", request_id)
-      .maybeSingle()
+    const { data: requestData, error: requestError } = await supabase
+      .from("food_requests")
+      .select("status, ngo_id, food_donations(id, donor_id, expiry_time, status), pickups(id, volunteer_id, status, assigned_at)")
+      .eq("id", request_id)
+      .single()
 
-    if (existingPickupError) {
-      console.error("LOOKUP PICKUP ERROR:", existingPickupError)
-      return NextResponse.json({ success: false, error: existingPickupError.message }, { status: 500 })
+    if (requestError || !requestData) {
+      return NextResponse.json({ success: false, error: "Request not found" }, { status: 404 })
     }
 
-    if (existingPickup) {
-      if (existingPickup.volunteer_id === volunteer_id) {
-        return NextResponse.json({ success: true, pickup: existingPickup, alreadyAssigned: true })
+    const donation = requestData.food_donations as unknown as { id: string, donor_id: string, expiry_time: string, status: string }
+    if (!donation) {
+      return NextResponse.json({ success: false, error: "Donation not found" }, { status: 404 })
+    }
+
+    if (donation.status === "Expired" || new Date(donation.expiry_time).getTime() < Date.now()) {
+      return NextResponse.json({ success: false, error: "This pickup window has expired." }, { status: 400 })
+    }
+
+    const assignedPickups = Array.isArray(requestData.pickups) ? requestData.pickups : requestData.pickups ? [requestData.pickups] : []
+    const activePickup = assignedPickups.find(p => p.status !== 'cancelled')
+
+    if (activePickup) {
+      if (activePickup.volunteer_id === volunteer_id) {
+        return NextResponse.json({ success: true, pickup: activePickup, alreadyAssigned: true })
       }
       return NextResponse.json({ success: false, error: "This pickup has already been claimed by another volunteer." }, { status: 409 })
     }
@@ -89,6 +99,17 @@ export async function POST(request: Request) {
         }, { status: 409 })
       }
       return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    }
+
+    // Insert Notification for Donor
+    if (donation.donor_id) {
+      await supabase.from("user_notifications").insert([{
+        user_id: donation.donor_id,
+        title: "Pickup Accepted",
+        message: "A volunteer has accepted your pickup and is on the way.",
+        type: "pickup_accepted",
+        reference_id: data.id
+      }]);
     }
 
     return NextResponse.json({

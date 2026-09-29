@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useEffect, useRef, useState } from "react"
 import { useParams } from "next/navigation"
@@ -12,6 +12,8 @@ import Link from "next/link"
 import { calculateDistance, estimateTravelTime } from "@/lib/utils"
 import PickupMap from "@/components/volunteer/PickupMap"
 import { buildGoogleMapsDirections } from "@/lib/google-maps-directions"
+import { getPickupDisplayStatus } from "@/lib/pickup-status"
+import { Textarea } from "@/components/ui/textarea"
 
 type DestinationProfile = {
   name: string
@@ -50,6 +52,7 @@ export default function PickupDetail() {
   const [loading, setLoading] = useState(true)
   const [pickup, setPickup] = useState<PickupDetailRow | null>(null)
   const [updating, setUpdating] = useState(false)
+  const [deliveryNote, setDeliveryNote] = useState("")
   const [volunteerLocation, setVolunteerLocation] = useState<{ latitude: number | null; longitude: number | null }>({
     latitude: null,
     longitude: null
@@ -58,7 +61,7 @@ export default function PickupDetail() {
   useEffect(() => {
     async function fetchPickup() {
       if (!user || !id) return
-      
+
       try {
         const { data, error } = await supabase
           .from("pickups")
@@ -70,7 +73,7 @@ export default function PickupDetail() {
 
         if (error) throw error
 
-        
+
         setPickup(data as unknown as PickupDetailRow)
       } catch (err) {
         console.error(err)
@@ -168,16 +171,23 @@ export default function PickupDetail() {
   async function updateStatus(newStatus: string) {
     if (!user) return
     setUpdating(true)
-    
+
     try {
       const { data: { session } } = await supabase.auth.getSession()
+      const payload: Record<string, string | number | null> = { status: newStatus }
+      if (newStatus === "delivered") {
+        payload.delivery_note = deliveryNote
+        payload.delivery_latitude = volunteerLocation.latitude
+        payload.delivery_longitude = volunteerLocation.longitude
+      }
+
       const res = await fetch(`/api/pickups/${id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${session?.access_token}`
         },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify(payload)
       })
 
       if (res.ok) {
@@ -286,7 +296,7 @@ export default function PickupDetail() {
         <Card className="min-w-0 overflow-hidden rounded-2xl border-border/50 shadow-sm">
           <div className="flex min-w-0 flex-col items-start justify-between gap-3 border-b border-primary/10 bg-primary/10 p-4 sm:flex-row sm:items-center sm:p-6">
             <div className="min-w-0">
-              <Badge className="mb-2 max-w-full whitespace-normal break-words border-0 bg-primary/20 text-primary hover:bg-primary/30">Status: {pickup.status.replace(/_/g, ' ').toUpperCase()}</Badge>
+              <Badge className="mb-2 max-w-full whitespace-normal break-words border-0 bg-primary/20 text-primary hover:bg-primary/30">Status: {getPickupDisplayStatus(pickup.status).toUpperCase()}</Badge>
               <h2 className="break-words text-2xl font-bold">{donation.title}</h2>
               <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
                 <p className="font-medium text-muted-foreground">{donation.quantity} meals</p>
@@ -304,11 +314,11 @@ export default function PickupDetail() {
               </div>
             </div>
           </div>
-          
+
           <CardContent className="space-y-8 p-4 sm:p-6">
             {/* Timeline */}
             <div className="relative border-l-2 border-muted ml-3 space-y-6">
-              
+
               {/* Step 1: Donor */}
               <div className="relative pl-6">
                 <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 border-background ${['en_route_to_donor', 'arrived_at_donor', 'collected', 'en_route_to_ngo', 'arrived_at_ngo', 'completed'].includes(pickup.status) ? 'bg-emerald-500' : 'bg-muted'}`} />
@@ -333,7 +343,7 @@ export default function PickupDetail() {
                 Start Route to Donor
               </Button>
             )}
-            
+
             {pickup.status === 'en_route_to_donor' && (
               <Button disabled={updating} onClick={() => updateStatus('arrived_at_donor')} className="w-full py-6 text-lg rounded-xl shadow-md">
                 I&apos;ve Arrived at Donor
@@ -365,15 +375,43 @@ export default function PickupDetail() {
             )}
 
             {pickup.status === 'arrived_at_ngo' && (
-              <div className="w-full rounded-xl bg-muted p-4 text-center text-sm text-muted-foreground">
-                You marked arrival. The NGO must confirm they received the food to complete this order.
+              <div className="w-full space-y-4">
+                <Textarea
+                  placeholder="Optional delivery note (e.g., Left at back door, handed to staff)"
+                  value={deliveryNote}
+                  onChange={(e) => setDeliveryNote(e.target.value)}
+                  className="w-full"
+                />
+                <Button disabled={updating} onClick={() => updateStatus('delivered')} className="w-full py-6 text-lg rounded-xl shadow-md bg-emerald-600 hover:bg-emerald-700">
+                  Confirm Delivery
+                </Button>
               </div>
             )}
 
-            {pickup.status === 'completed' && (
+            {(pickup.status === 'completed' || pickup.status === 'delivered') && (
               <div className="w-full py-4 text-center rounded-xl bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center gap-2">
                 <CheckCircle2 className="w-6 h-6" /> Delivery Completed Successfully!
               </div>
+            )}
+
+            {pickup.status === 'cancelled' && (
+              <div className="w-full py-4 text-center rounded-xl bg-red-100 text-red-800 font-bold flex items-center justify-center gap-2">
+                Pickup Cancelled
+              </div>
+            )}
+
+            {pickup.status !== 'completed' && pickup.status !== 'delivered' && pickup.status !== 'cancelled' && (
+              <Button
+                variant="destructive"
+                disabled={updating}
+                onClick={() => {
+                  if (confirm('Are you sure you want to cancel this pickup? This cannot be undone.')) {
+                    updateStatus('cancelled')
+                  }
+                }}
+                className="w-full py-4 mt-4 rounded-xl shadow-md">
+                Cancel Pickup
+              </Button>
             )}
           </CardFooter>
         </Card>

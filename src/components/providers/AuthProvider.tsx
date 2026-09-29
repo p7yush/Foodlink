@@ -14,6 +14,7 @@ type Profile = {
   latitude: number | null
   longitude: number | null
   is_available: boolean | null
+  preferred_pickup_radius_km?: number | null
 }
 
 type AuthContextType = {

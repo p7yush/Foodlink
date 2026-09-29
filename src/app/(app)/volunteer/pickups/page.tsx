@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { MapPin, Clock, Package, AlertCircle } from "lucide-react"
 import { calculateDistance, estimateTravelTime } from "@/lib/utils"
 import { formatCountdown, minutesUntil } from "@/lib/matching"
+import { isExpired } from "@/lib/donation-status"
 
 type DestinationProfile = {
   name: string
@@ -34,7 +35,7 @@ type AvailableRequest = {
     profiles?: { name: string } | null
   } | null
   profiles?: DestinationProfile
-  pickups?: { id: string }[] | { id: string } | null
+  pickups?: { id: string, status?: string }[] | { id: string, status?: string } | null
 }
 
 export default function AvailablePickups() {
@@ -56,7 +57,7 @@ export default function AvailablePickups() {
         const { data, error } = await supabase
           .from("food_requests")
           .select(
-            "*, food_donations(*, profiles!food_donations_donor_id_fkey(name)), profiles!food_requests_ngo_id_fkey(name, organization, address, latitude, longitude), pickups(id)"
+            "*, food_donations(*, profiles!food_donations_donor_id_fkey(name)), profiles!food_requests_ngo_id_fkey(name, organization, address, latitude, longitude), pickups(id, status)"
           )
           .eq("status", "accepted")
 
@@ -65,13 +66,54 @@ export default function AvailablePickups() {
         if (data) {
           // Filter out requests that already have an assigned pickup
           const rows = data as unknown as AvailableRequest[]
-          setFetchedAt(Date.now())
-          setPickups(rows.filter((request) => {
+          const now = Date.now()
+          setFetchedAt(now)
+
+          const validPickups = rows.filter((request) => {
             const assignedPickups = Array.isArray(request.pickups)
               ? request.pickups
               : request.pickups ? [request.pickups] : []
-            return assignedPickups.length === 0
-          }))
+            const hasActivePickup = assignedPickups.some(p => p.status !== 'cancelled')
+
+            if (hasActivePickup) return false;
+
+            const donation = request.food_donations;
+            if (!donation) return false;
+
+            if (isExpired(donation, now)) return false;
+
+            if (profile?.preferred_pickup_radius_km && profile.latitude && profile.longitude && donation.latitude && donation.longitude) {
+              const dist = calculateDistance(profile.latitude, profile.longitude, donation.latitude, donation.longitude);
+              if (dist > profile.preferred_pickup_radius_km) return false;
+            }
+
+            return true;
+          });
+
+          validPickups.sort((a, b) => {
+            const getDistance = (req: AvailableRequest) => {
+              if (profile?.latitude && profile?.longitude && req.food_donations?.latitude && req.food_donations?.longitude) {
+                return calculateDistance(profile.latitude, profile.longitude, req.food_donations.latitude, req.food_donations.longitude);
+              }
+              return 999999;
+            };
+
+            const distA = getDistance(a);
+            const distB = getDistance(b);
+
+            if (Math.abs(distA - distB) > 5) {
+              return distA - distB;
+            }
+
+            const timeA = minutesUntil(a.food_donations!.expiry_time, now);
+            const timeB = minutesUntil(b.food_donations!.expiry_time, now);
+
+            if (timeA !== timeB) return timeA - timeB;
+
+            return a.id.localeCompare(b.id);
+          });
+
+          setPickups(validPickups)
         }
       } catch (err) {
         console.error("Error fetching pickups:", err)
@@ -81,7 +123,7 @@ export default function AvailablePickups() {
     }
 
     fetchPickups()
-  }, [user])
+  }, [user, profile?.latitude, profile?.longitude, profile?.preferred_pickup_radius_km])
 
   async function handleAcceptPickup(requestId: string) {
     if (!user) return
@@ -161,7 +203,7 @@ export default function AvailablePickups() {
                     <AlertCircle className="w-3 h-3" /> {urgency}
                   </Badge>
                 </div>
-                
+
                 <CardContent className="p-5 flex-1 space-y-4">
                   {donation.latitude && donation.longitude && pickup.profiles?.latitude && pickup.profiles?.longitude && (
                     <div className="flex min-w-0 flex-col gap-3 rounded-lg bg-muted/30 p-3 text-sm sm:flex-row sm:items-center sm:gap-4">
@@ -200,9 +242,9 @@ export default function AvailablePickups() {
                     </div>
                   </div>
                 </CardContent>
-                
+
                 <CardFooter className="p-5 pt-0 mt-auto">
-                  <Button 
+                  <Button
                     className="w-full rounded-xl py-6 text-lg shadow-md hover:shadow-lg transition-all"
                     disabled={profile?.is_available === false}
                     onClick={() => handleAcceptPickup(pickup.id)}
