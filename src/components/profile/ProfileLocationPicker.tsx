@@ -253,7 +253,6 @@ export default function ProfileLocationPicker({
         style: "mapbox://styles/mapbox/streets-v12",
         center: initialPoint ?? DEFAULT_CENTER,
         zoom: initialPoint ? 14 : 4,
-        attributionControl: true,
       })
       mapRef.current = map
       map.on("load", () => {

@@ -67,15 +67,16 @@ export function buildGoogleMapsDirections(input: GoogleMapsDirectionsInput): Goo
   const origin = liveOrigin ? "live" : profileOrigin ? "profile" : "device"
   const originCoordinates = liveOrigin ?? profileOrigin
 
+  const targetDestination = (!handoffComplete && donor) ? donor : ngo
+
   const params = new URLSearchParams({
     api: "1",
-    destination: formatCoordinates(ngo),
+    destination: formatCoordinates(targetDestination),
     travelmode: "driving",
   })
   if (originCoordinates) params.set("origin", formatCoordinates(originCoordinates))
 
   const donorWaypoint = Boolean(!handoffComplete && donor && !sameCoordinates(donor, ngo))
-  if (donorWaypoint && donor) params.set("waypoints", formatCoordinates(donor))
 
   const notice = origin === "profile"
     ? "Live GPS is unavailable; directions will start from your saved profile location."

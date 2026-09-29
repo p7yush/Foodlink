@@ -11,7 +11,7 @@ const DEFAULT_INPUT: GoogleMapsDirectionsInput = {
 }
 
 describe("Google Maps pickup directions", () => {
-  it("routes volunteer to donor waypoint to NGO before handoff", () => {
+  it("routes volunteer to donor before handoff", () => {
     const result = buildGoogleMapsDirections(DEFAULT_INPUT)
     expect(result.status).toBe("ready")
     if (result.status !== "ready") return
@@ -21,8 +21,8 @@ describe("Google Maps pickup directions", () => {
     expect(url.pathname).toBe("/maps/dir/")
     expect(url.searchParams.get("api")).toBe("1")
     expect(url.searchParams.get("origin")).toBe("12.9716,77.5946")
-    expect(url.searchParams.get("waypoints")).toBe("13.0827,80.2707")
-    expect(url.searchParams.get("destination")).toBe("19.076,72.8777")
+    expect(url.searchParams.has("waypoints")).toBe(false)
+    expect(url.searchParams.get("destination")).toBe("13.0827,80.2707")
     expect(url.searchParams.get("travelmode")).toBe("driving")
     expect(result.donorWaypoint).toBe(true)
     expect(result.origin).toBe("live")
@@ -42,7 +42,7 @@ describe("Google Maps pickup directions", () => {
     expect(result.donorWaypoint).toBe(false)
   })
 
-  it("keeps the donor stop until the saved handoff confirmation is present", () => {
+  it("keeps routing to donor until the saved handoff confirmation is present", () => {
     const result = buildGoogleMapsDirections({
       ...DEFAULT_INPUT,
       pickupStatus: "en_route_to_ngo",
@@ -50,7 +50,8 @@ describe("Google Maps pickup directions", () => {
     })
     expect(result.status).toBe("ready")
     if (result.status !== "ready") return
-    expect(new URL(result.url).searchParams.get("waypoints")).toBe("13.0827,80.2707")
+    expect(new URL(result.url).searchParams.has("waypoints")).toBe(false)
+    expect(new URL(result.url).searchParams.get("destination")).toBe("13.0827,80.2707")
   })
 
   it("requires donor coordinates before handoff", () => {
@@ -127,8 +128,7 @@ describe("Google Maps pickup directions", () => {
     expect(result.status).toBe("ready")
     if (result.status !== "ready") return
     expect(result.url).toContain("origin=12.9716%2C77.5946")
-    expect(result.url).toContain("waypoints=13.0827%2C80.2707")
-    expect(result.url).toContain("destination=19.076%2C72.8777")
+    expect(result.url).toContain("destination=13.0827%2C80.2707")
   })
 
   it("does not add a duplicate donor waypoint when donor and NGO coordinates match", () => {
