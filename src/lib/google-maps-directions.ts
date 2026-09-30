@@ -9,6 +9,7 @@ export type GoogleMapsDirectionsInput = {
   volunteerLiveLocation: RouteCoordinates
   volunteerProfileLocation: RouteCoordinates
   donorLocation: RouteCoordinates
+  donorAddress?: string | null
   ngoLocation: RouteCoordinates
   donorHandoffConfirmedAt: string | null
   pickupStatus: string
@@ -58,7 +59,8 @@ export function buildGoogleMapsDirections(input: GoogleMapsDirectionsInput): Goo
   // persisted donor handoff confirmation arrives.
   const handoffComplete = Boolean(input.donorHandoffConfirmedAt)
   const donor = validCoordinates(input.donorLocation)
-  if (!handoffComplete && !donor) {
+  const donorAddress = input.donorAddress?.trim() || null
+  if (!handoffComplete && !donor && !donorAddress) {
     return { status: "unavailable", reason: "The donor pickup coordinates are missing or invalid." }
   }
 
@@ -67,16 +69,17 @@ export function buildGoogleMapsDirections(input: GoogleMapsDirectionsInput): Goo
   const origin = liveOrigin ? "live" : profileOrigin ? "profile" : "device"
   const originCoordinates = liveOrigin ?? profileOrigin
 
-  const targetDestination = (!handoffComplete && donor) ? donor : ngo
+  const donorWaypoint = !handoffComplete
+    ? donorAddress ?? (donor && !sameCoordinates(donor, ngo) ? formatCoordinates(donor) : null)
+    : null
 
   const params = new URLSearchParams({
     api: "1",
-    destination: formatCoordinates(targetDestination),
+    destination: formatCoordinates(ngo),
     travelmode: "driving",
   })
   if (originCoordinates) params.set("origin", formatCoordinates(originCoordinates))
-
-  const donorWaypoint = Boolean(!handoffComplete && donor && !sameCoordinates(donor, ngo))
+  if (donorWaypoint) params.set("waypoints", donorWaypoint)
 
   const notice = origin === "profile"
     ? "Live GPS is unavailable; directions will start from your saved profile location."
@@ -88,7 +91,7 @@ export function buildGoogleMapsDirections(input: GoogleMapsDirectionsInput): Goo
     status: "ready",
     url: `https://www.google.com/maps/dir/?${params.toString()}`,
     origin,
-    donorWaypoint,
+    donorWaypoint: Boolean(donorWaypoint),
     notice,
   }
 }

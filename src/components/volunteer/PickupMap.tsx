@@ -1,10 +1,7 @@
 import mapboxgl, { Map, LngLatLike, LngLatBounds, Marker, Popup } from 'mapbox-gl';
 import { useCallback, useEffect, useRef, useState } from 'react';
-
-// Mapbox GL JS needs to access window, so we check for typeof window !== 'undefined'
-if (typeof window !== 'undefined') {
-  mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
-}
+import { BASE_MAP_STYLE, MAP_TILE_ATTRIBUTION, MAP_TILE_ATTRIBUTION_URL } from '@/lib/map-style';
+import { isValidCoordinates } from '@/lib/profile-location';
 
 // Import Mapbox GL CSS
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -36,6 +33,7 @@ export default function PickupMap({
   const mapInstanceRef = useRef<Map | null>(null);
   const markersRef = useRef<(Marker | null)[]>([null, null, null]); // [volunteer, donor, ngo]
   const [mapReady, setMapReady] = useState(false);
+  const [mapError, setMapError] = useState("");
   const routeSourceId = 'pickup-route';
   const routeLayerId = 'pickup-route-line';
   const lastRouteRequestRef = useRef(0);
@@ -192,20 +190,27 @@ const updateRoute = useCallback(async () => {
 
 // Initialize map - runs once after mount
   useEffect(() => {
-    if (typeof window === 'undefined' || !process.env.NEXT_PUBLIC_MAPBOX_TOKEN || !mapRef.current) {
+    if (typeof window === 'undefined' || !mapRef.current) {
       return;
     }
 
     // Initialize map
     const map = new mapboxgl.Map({
       container: mapRef.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
+      style: BASE_MAP_STYLE,
+      attributionControl: false,
       center: [0, 0], // Will be updated when we have locations
       zoom: 1,
     });
 
     mapInstanceRef.current = map;
-    setMapReady(true);
+    map.once('load', () => {
+      setMapReady(true);
+      setMapError("");
+    });
+    map.on('error', () => {
+      if (!map.isStyleLoaded()) setMapError("The map tiles could not be loaded. Check your connection and try again.");
+    });
 
     // Clean up on unmount
     return () => {
@@ -255,7 +260,7 @@ const updateRoute = useCallback(async () => {
 
     // Create markers for each location
     locations.forEach((loc, index) => {
-      if (loc.latitude !== null && loc.longitude !== null) {
+      if (loc.latitude !== null && loc.longitude !== null && isValidCoordinates(loc.latitude, loc.longitude)) {
         let lngLat: LngLatLike = [loc.longitude, loc.latitude];
 
         // Check if this location has the same coordinates as any previous valid location
@@ -350,16 +355,30 @@ const updateRoute = useCallback(async () => {
   ]);
 
   return (
-    <>
-      <div ref={mapRef} className={`relative h-64 w-full rounded-lg ${className}`} />
+    <div className={`relative h-64 w-full overflow-hidden rounded-lg ${className}`}>
+      <div ref={mapRef} className="absolute inset-0" style={{ position: 'absolute' }} />
       {!mapReady && (
         <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-90 rounded-lg">
           <div className="text-center">
-            <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-            <p className="mt-2 text-sm text-muted-foreground">Loading map...</p>
+            {mapError ? (
+              <p className="p-4 text-sm text-destructive" role="status">{mapError}</p>
+            ) : (
+              <>
+                <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                <p className="mt-2 text-sm text-muted-foreground">Loading map...</p>
+              </>
+            )}
           </div>
         </div>
       )}
-    </>
+      <a
+        href={MAP_TILE_ATTRIBUTION_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="absolute bottom-2 right-2 z-10 rounded bg-white/90 px-1.5 py-0.5 text-[10px] text-muted-foreground underline"
+      >
+        {MAP_TILE_ATTRIBUTION}
+      </a>
+    </div>
   );
 }

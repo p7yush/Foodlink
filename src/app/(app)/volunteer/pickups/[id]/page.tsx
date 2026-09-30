@@ -214,8 +214,8 @@ export default function PickupDetail() {
   const donorName = donation.profiles?.name ?? "Unknown Donor"
   const ngoName = req.profiles?.organization || req.profiles?.name || "Unknown NGO"
   const donorCoordinates = {
-    latitude: donation.latitude ?? donation.profiles?.latitude ?? null,
-    longitude: donation.longitude ?? donation.profiles?.longitude ?? null,
+    latitude: donation.latitude ?? null,
+    longitude: donation.longitude ?? null,
   }
   const ngoCoordinates = {
     latitude: req.profiles?.latitude ?? null,
@@ -228,6 +228,7 @@ export default function PickupDetail() {
       longitude: currentProfile?.longitude ?? null,
     },
     donorLocation: donorCoordinates,
+    donorAddress: donation.pickup_address,
     ngoLocation: ngoCoordinates,
     donorHandoffConfirmedAt: pickup.donor_handoff_confirmed_at,
     pickupStatus: pickup.status,
@@ -254,7 +255,7 @@ export default function PickupDetail() {
             donorLocation={{
               latitude: donorCoordinates.latitude,
               longitude: donorCoordinates.longitude,
-              label: "Donor Location"
+              label: donation.pickup_address || "Donor Location"
             }}
             ngoLocation={{
               latitude: ngoCoordinates.latitude,

@@ -4,6 +4,7 @@ import mapboxgl, { type Map as MapboxMap, type Marker as MapboxMarker } from "ma
 import { LocateFixed, MapPin, Search } from "lucide-react"
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react"
 import "mapbox-gl/dist/mapbox-gl.css"
+import { BASE_MAP_STYLE, MAP_TILE_ATTRIBUTION, MAP_TILE_ATTRIBUTION_URL } from "@/lib/map-style"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -36,7 +37,7 @@ type ProfileLocationPickerProps = {
 
 type MapboxFeatureCollection = { features?: unknown[] }
 type LocationField = "address" | "city" | "state" | "pincode"
-type MapStatus = "loading" | "ready" | "error" | "missing"
+type MapStatus = "loading" | "ready" | "error"
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
 const DEFAULT_CENTER: [number, number] = [78.9629, 20.5937]
@@ -89,7 +90,7 @@ export default function ProfileLocationPicker({
   const [notice, setNotice] = useState("")
   const [geolocating, setGeolocating] = useState(false)
   const [mapError, setMapError] = useState("")
-  const [mapStatus, setMapStatus] = useState<MapStatus>(MAPBOX_TOKEN ? "loading" : "missing")
+  const [mapStatus, setMapStatus] = useState<MapStatus>("loading")
   const [resolving, setResolvingState] = useState(false)
 
   const setGeolocatingState = useCallback((loading: boolean) => {
@@ -240,17 +241,17 @@ export default function ProfileLocationPicker({
   }, [selectCoordinates])
 
   useEffect(() => {
-    if (!MAPBOX_TOKEN || !mapContainerRef.current || mapRef.current) return
+    if (!mapContainerRef.current || mapRef.current) return
 
     const locationGuard = locationGuardRef.current
     const searchGuard = searchGuardRef.current
     let loaded = false
     try {
-      mapboxgl.accessToken = MAPBOX_TOKEN
       const initialPoint = coordinatePoint(locationRef.current)
       const map = new mapboxgl.Map({
         container: mapContainerRef.current,
-        style: "mapbox://styles/mapbox/streets-v12",
+        style: BASE_MAP_STYLE,
+        attributionControl: false,
         center: initialPoint ?? DEFAULT_CENTER,
         zoom: initialPoint ? 14 : 4,
       })
@@ -595,30 +596,32 @@ export default function ProfileLocationPicker({
         </Button>
       </div>
 
-      {MAPBOX_TOKEN ? (
-        <div className="relative min-w-0">
-          <div
-            ref={mapContainerRef}
+      <div className="relative min-w-0">
+        <div
+          ref={mapContainerRef}
           className="h-64 w-full min-w-0 max-w-full overflow-hidden rounded-lg border bg-muted sm:h-80"
-            aria-label="Choose a profile location on the map"
-            role="application"
-          />
-          {mapStatus === "loading" && (
-            <div className="absolute inset-0 flex h-64 items-center justify-center rounded-lg bg-background/75 text-sm text-muted-foreground sm:h-80" role="status" aria-live="polite">
-              Loading map…
-            </div>
-          )}
-          {mapStatus === "error" && (
-            <div className="absolute inset-x-3 top-3 rounded-md border bg-background/95 p-3 text-sm text-destructive" role="status">
-              {mapError || "The map could not be initialized. You can still enter an address or use browser location."}
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="flex h-40 items-center justify-center rounded-lg border border-dashed bg-muted/40 p-4 text-center text-sm text-muted-foreground" role="status">
-          The map and address search are unavailable because Mapbox is not configured. Browser location can still fill the saved coordinates.
-        </div>
-      )}
+          aria-label="Choose a profile location on the map"
+          role="application"
+        />
+        {mapStatus === "loading" && (
+          <div className="absolute inset-0 flex h-64 items-center justify-center rounded-lg bg-background/75 text-sm text-muted-foreground sm:h-80" role="status" aria-live="polite">
+            Loading map…
+          </div>
+        )}
+        {mapStatus === "error" && (
+          <div className="absolute inset-x-3 top-3 rounded-md border bg-background/95 p-3 text-sm text-destructive" role="status">
+            {mapError || "The map could not be initialized. You can still enter an address or use browser location."}
+          </div>
+        )}
+        <a
+          href={MAP_TILE_ATTRIBUTION_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute bottom-2 right-2 z-10 rounded bg-background/90 px-1.5 py-0.5 text-[10px] text-muted-foreground underline"
+        >
+          {MAP_TILE_ATTRIBUTION}
+        </a>
+      </div>
       {mapError && mapStatus !== "error" && <p className="text-sm text-destructive" role="status">{mapError}</p>}
       {resolving && <p className="text-sm text-muted-foreground" role="status">Verifying the selected location address…</p>}
       {needsAddressReview && !resolving && <p className="text-sm text-destructive" role="alert">The coordinates are selected, but the address still needs review. Enter the address or choose a result before saving.</p>}
