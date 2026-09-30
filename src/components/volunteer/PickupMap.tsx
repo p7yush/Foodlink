@@ -322,7 +322,7 @@ const updateRoute = useCallback(async () => {
       // Add some padding
       map.fitBounds(bounds, {
         padding: 50,
-        maxZoom: 15,
+        maxZoom: 17,
       });
     } else {
       // If no valid locations, reset to default view
