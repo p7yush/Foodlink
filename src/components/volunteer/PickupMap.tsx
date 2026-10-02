@@ -2,6 +2,7 @@ import mapboxgl, { Map, LngLatLike, LngLatBounds, Marker, Popup } from 'mapbox-g
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BASE_MAP_STYLE, MAP_TILE_ATTRIBUTION, MAP_TILE_ATTRIBUTION_URL } from '@/lib/map-style';
 import { isValidCoordinates } from '@/lib/profile-location';
+import { planPickupRoute, fetchRouteGeometry } from '@/lib/pickup-route';
 
 // Import Mapbox GL CSS
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -34,6 +35,7 @@ export default function PickupMap({
   const markersRef = useRef<(Marker | null)[]>([null, null, null]); // [volunteer, donor, ngo]
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState("");
+  const [tileError, setTileError] = useState(false);
   const routeSourceId = 'pickup-route';
   const routeLayerId = 'pickup-route-line';
   const lastRouteRequestRef = useRef(0);
@@ -42,56 +44,37 @@ export default function PickupMap({
   
 const updateRoute = useCallback(async () => {
     const map = mapInstanceRef.current;
-
-    // Get route waypoints based on handoff status
-    const volunteer =
-      volunteerLocation.latitude !== null && volunteerLocation.longitude !== null
-        ? [volunteerLocation.longitude, volunteerLocation.latitude] as [number, number]
-        : null;
-
-    const donor =
-      donorLocation.latitude !== null && donorLocation.longitude !== null
-        ? [donorLocation.longitude, donorLocation.latitude] as [number, number]
-        : null;
-
-    const ngo =
-      ngoLocation.latitude !== null && ngoLocation.longitude !== null
-        ? [ngoLocation.longitude, ngoLocation.latitude] as [number, number]
-        : null;
-
-    let waypoints: [number, number][] = [];
-    if (donorHandoffConfirmedAt) {
-      if (donor && ngo) {
-        waypoints = [donor, ngo];
-      }
-    } else {
-      if (volunteer && donor && ngo) {
-        waypoints = [volunteer, donor, ngo];
-      }
+    if (!map) {
+      return;
     }
 
-    // Handle case where start and end coordinates are identical (or very close)
-    if (waypoints.length === 2) {
-      const [start, end] = waypoints;
-      // Check if coordinates are identical or very close (within 1 meter)
-      const [startLng, startLat] = start;
-      const [endLng, endLat] = end;
-      const isIdentical = Math.abs(startLng - endLng) < 0.00001 && Math.abs(startLat - endLat) < 0.00001;
-      if (isIdentical) {
-        // Remove existing route if coordinates are identical
-        if (map !== null) {
-          if (map.getLayer(routeLayerId)) {
-            map.removeLayer(routeLayerId);
-          }
-          if (map.getSource(routeSourceId)) {
-            map.removeSource(routeSourceId);
-          }
-        }
-        return;
-      }
-    }
+    // Free OSM-based routing (OSRM): no API key, no billing.
+    // Ordered waypoints: volunteer -> donor -> NGO before the donor handoff,
+    // volunteer -> NGO after it (never back through the donor).
+    const plan = planPickupRoute({
+      volunteer: {
+        latitude: volunteerLocation.latitude,
+        longitude: volunteerLocation.longitude,
+      },
+      donor: {
+        latitude: donorLocation.latitude,
+        longitude: donorLocation.longitude,
+      },
+      ngo: {
+        latitude: ngoLocation.latitude,
+        longitude: ngoLocation.longitude,
+      },
+      donorHandoffConfirmedAt,
+    });
 
-    if (!map || waypoints.length < 2 || !process.env.NEXT_PUBLIC_MAPBOX_TOKEN) {
+    if (plan.status !== "ready") {
+      // No valid route applies — clear any stale route line.
+      if (map.getLayer(routeLayerId)) {
+        map.removeLayer(routeLayerId);
+      }
+      if (map.getSource(routeSourceId)) {
+        map.removeSource(routeSourceId);
+      }
       return;
     }
 
@@ -103,80 +86,59 @@ const updateRoute = useCallback(async () => {
     lastRouteRequestRef.current = now;
     const requestId = ++routeRequestIdRef.current;
 
-    const coordinates = waypoints
-      .map(([longitude, latitude]) => `${longitude},${latitude}`)
-      .join(';');
+    const geometry = await fetchRouteGeometry(plan.url);
 
-    const url =
-      `https://api.mapbox.com/directions/v5/mapbox/driving/${coordinates}` +
-      `?access_token=${encodeURIComponent(process.env.NEXT_PUBLIC_MAPBOX_TOKEN)}` +
-      `&geometries=geojson&overview=full`;
+    if (requestId !== routeRequestIdRef.current) {
+      return;
+    }
 
-    try {
-      const response = await fetch(url);
+    if (!geometry) {
+      return;
+    }
 
-      if (!response.ok) {
+    const updateSourceAndLayer = () => {
+      if (!map.isStyleLoaded()) {
         return;
       }
 
-      const data = await response.json();
-
-      if (requestId !== routeRequestIdRef.current) {
-        return;
-      }
-
-      const geometry = data.routes?.[0]?.geometry;
-
-      if (!geometry || geometry.type !== 'LineString') {
-        return;
-      }
-
-      const updateSourceAndLayer = () => {
-        if (!map.isStyleLoaded()) {
-          return;
-        }
-
-        const feature = {
-          type: 'Feature' as const,
-          properties: {},
-          geometry,
-        };
-
-        const existingSource = map.getSource(routeSourceId);
-
-        if (existingSource && 'setData' in existingSource) {
-          (existingSource as mapboxgl.GeoJSONSource).setData(feature);
-        } else {
-          map.addSource(routeSourceId, {
-            type: 'geojson',
-            data: feature,
-          });
-        }
-
-        if (!map.getLayer(routeLayerId)) {
-          map.addLayer({
-            id: routeLayerId,
-            type: 'line',
-            source: routeSourceId,
-            layout: {
-              'line-join': 'round',
-              'line-cap': 'round',
-            },
-            paint: {
-              'line-color': '#3b82f6',
-              'line-width': 5,
-            },
-          });
-        }
+      const feature = {
+        type: 'Feature' as const,
+        properties: {},
+        geometry,
       };
 
-      if (map.isStyleLoaded()) {
-        updateSourceAndLayer();
+      const existingSource = map.getSource(routeSourceId);
+
+      if (existingSource && 'setData' in existingSource) {
+        (existingSource as mapboxgl.GeoJSONSource).setData(feature);
       } else {
-        map.once('load', updateSourceAndLayer);
+        map.addSource(routeSourceId, {
+          type: 'geojson',
+          data: feature,
+        });
       }
-    } catch {
-      // Route failures should not break the map.
+
+      if (!map.getLayer(routeLayerId)) {
+        map.addLayer({
+          id: routeLayerId,
+          type: 'line',
+          source: routeSourceId,
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round',
+          },
+          paint: {
+            'line-color': '#3b82f6',
+            'line-width': 5,
+          },
+        });
+      }
+    };
+
+    if (map.isStyleLoaded()) {
+      updateSourceAndLayer();
+    } else {
+      map.once('load', updateSourceAndLayer);
     }
   }, [
     volunteerLocation.latitude,
@@ -208,8 +170,17 @@ const updateRoute = useCallback(async () => {
       setMapReady(true);
       setMapError("");
     });
-    map.on('error', () => {
-      if (!map.isStyleLoaded()) setMapError("The map tiles could not be loaded. Check your connection and try again.");
+    map.on('error', (event) => {
+      if (!map.isStyleLoaded()) {
+        setMapError("The map tiles could not be loaded. Check your connection and try again.");
+        return;
+      }
+      // A raster tile failed after the style loaded — surface it instead of
+      // leaving a blank patch where streets should be.
+      const tile = (event as unknown as { tile?: unknown } | null)?.tile;
+      if (tile) {
+        setTileError(true);
+      }
     });
 
     // Clean up on unmount
@@ -357,6 +328,14 @@ const updateRoute = useCallback(async () => {
   return (
     <div className={`relative h-64 w-full overflow-hidden rounded-lg ${className}`}>
       <div ref={mapRef} className="absolute inset-0" style={{ position: 'absolute' }} />
+      {tileError && mapReady && !mapError && (
+        <p
+          role="status"
+          className="absolute left-2 top-2 z-10 max-w-[75%] rounded bg-amber-100/95 px-2 py-1 text-[11px] font-medium text-amber-900 shadow"
+        >
+          Some map tiles failed to load — streets may appear blank. Check your connection and reload.
+        </p>
+      )}
       {!mapReady && (
         <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-90 rounded-lg">
           <div className="text-center">

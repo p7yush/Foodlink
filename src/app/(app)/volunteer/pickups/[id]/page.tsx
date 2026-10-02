@@ -12,6 +12,7 @@ import Link from "next/link"
 import { calculateDistance, estimateTravelTime } from "@/lib/utils"
 import PickupMap from "@/components/volunteer/PickupMap"
 import { buildGoogleMapsDirections } from "@/lib/google-maps-directions"
+import { resolveDonorCoordinates } from "@/lib/pickup-route"
 import { getPickupDisplayStatus } from "@/lib/pickup-status"
 import { Textarea } from "@/components/ui/textarea"
 
@@ -213,10 +214,20 @@ export default function PickupDetail() {
 
   const donorName = donation.profiles?.name ?? "Unknown Donor"
   const ngoName = req.profiles?.organization || req.profiles?.name || "Unknown NGO"
+  // Prefer the donation's own coordinates; fall back to the donor profile's
+  // saved location. Never invent coordinates for the marker or the route.
+  const resolvedDonor = resolveDonorCoordinates(
+    { latitude: donation.latitude ?? null, longitude: donation.longitude ?? null },
+    {
+      latitude: donation.profiles?.latitude ?? null,
+      longitude: donation.profiles?.longitude ?? null,
+    },
+  )
   const donorCoordinates = {
-    latitude: donation.latitude ?? null,
-    longitude: donation.longitude ?? null,
+    latitude: resolvedDonor?.latitude ?? null,
+    longitude: resolvedDonor?.longitude ?? null,
   }
+  const donorLocationUnavailable = resolvedDonor === null
   const ngoCoordinates = {
     latitude: req.profiles?.latitude ?? null,
     longitude: req.profiles?.longitude ?? null,
@@ -245,6 +256,11 @@ export default function PickupDetail() {
       {pickup && (
         <div className="mb-6 min-w-0">
           <h3 className="text-lg font-semibold mb-2">Delivery Route</h3>
+          {donorLocationUnavailable && (
+            <p role="status" className="mb-2 rounded-lg bg-amber-100/80 px-3 py-2 text-sm font-medium text-amber-900">
+              Donor location is unavailable — the pickup point can&apos;t be shown on the map.
+            </p>
+          )}
           <div className="relative w-full min-w-0 overflow-hidden rounded-lg">
           <PickupMap
             volunteerLocation={{
